@@ -1,0 +1,12 @@
+{
+  "name": "@forge/core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Core domain logic and data structures for FORGE",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "test": "vitest run"
+  }
+}
+

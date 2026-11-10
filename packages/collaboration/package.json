@@ -1,0 +1,22 @@
+{
+  "name": "@forge/collaboration",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Yjs CRDT, WebRTC full-mesh synchronization, IndexedDB persistence, and signaling server for FORGE",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@forge/core": "*",
+    "ws": "^8.16.0",
+    "y-indexeddb": "^9.0.12",
+    "y-webrtc": "^10.3.0",
+    "yjs": "^13.6.14"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.10"
+  }
+}
+
