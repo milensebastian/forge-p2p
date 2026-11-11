@@ -1,90 +1,164 @@
-# FORGE — Local-First P2P Engineering Workspace
+# FORGE
+### A peer-to-peer collaborative coding workspace.
 
-An open-source, privacy-focused collaborative engineering workspace. FORGE enables engineering teams to collaboratively edit technical documentation and code in real time without a centralized server storing workspace content.
+**Code together. Share context. Build without a centralized workspace server.**
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue.svg)](https://www.typescriptlang.org/)
-[![React](https://img.shields.io/badge/React-18-61dafb.svg)](https://react.dev/)
-[![Yjs](https://img.shields.io/badge/CRDT-Yjs-orange.svg)](https://yjs.dev/)
-[![WebRTC](https://img.shields.io/badge/P2P-WebRTC%20Full--Mesh-emerald.svg)](https://webrtc.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[**Live Demo**](https://forge-p2p.vercel.app/) · [Report a Bug](https://github.com/milensebastian/FORGE/issues)
 
 ---
 
-## 🏛️ Architecture Overview
+## Overview
 
-FORGE is organized as a clean TypeScript monorepo using npm workspaces:
+FORGE is an experimental peer-to-peer collaborative development environment designed to explore a different approach to working together on code.
 
+Instead of relying entirely on a centralized server to coordinate every interaction, FORGE explores browser-based peer-to-peer communication to connect collaborators and synchronize their workspace.
+
+The goal is simple:
+
+**Make collaborative development feel like working on the same machine, even when collaborators are physically apart.**
+
+FORGE combines real-time collaboration concepts, browser-based development tools and distributed communication technologies into one workspace.
+
+## The Idea
+
+Traditional collaborative development often depends on a combination of:
+
+- Remote development environments
+- Centralized collaboration services
+- Git-based synchronization
+- Separate communication tools
+
+FORGE explores a more direct approach: connecting participants and sharing workspace state through peer-to-peer communication.
+
+## Core Technologies
+
+| Technology | Purpose |
+|---|---|
+| React | User interface |
+| TypeScript | Type-safe development |
+| Vite | Development and build tooling |
+| WebRTC | Peer-to-peer communication |
+| Yjs | Collaborative shared-state synchronization |
+| y-webrtc | WebRTC-based Yjs provider |
+
+*Technology descriptions reflect the project's intended technical architecture; individual integrations should be verified against the current implementation.*
+
+## Architecture
+
+```mermaid
+flowchart TB
+    A[Developer A - Browser]
+    B[Developer B - Browser]
+    C[Developer C - Browser]
+
+    S[Signaling Infrastructure]
+
+    A <--> S
+    B <--> S
+    C <--> S
+
+    A <-->|WebRTC| B
+    B <-->|WebRTC| C
+    A <-->|WebRTC| C
+
+    A --- Y[Yjs Shared State]
+    B --- Y
+    C --- Y
 ```
-forge/
-├── apps/
-│   ├── web/                 # Browser application (React 18 + Vite + Tailwind + Monaco)
-│   └── desktop/             # Reserved for future Tauri integration (placeholder)
-├── packages/
-│   ├── core/                # Shared workspace, document types, and room primitives
-│   ├── collaboration/       # Yjs CRDT engine, y-webrtc mesh sync, y-indexeddb & signaling server
-│   ├── ui/                  # Reusable dark engineering UI component library
-│   └── config/              # Shared TypeScript & build configs
-├── SECURITY.md              # Detailed security model and threat boundary
-└── vitest.config.ts         # Unit & integration testing configuration
-```
 
-### Key Pillars
-- **Zero Central Document Storage**: Keystrokes and file trees never touch a centralized cloud database.
-- **P2P WebRTC Full-Mesh**: Direct `RTCDataChannel` connections link up to 5 participants with sub-millisecond local synchronization.
-- **Local-First Durability**: Client-side `IndexedDB` automatically saves every CRDT transaction. Workspaces load offline instantly.
-- **Dual Collaborative Editors**:
-  - **Monaco Code Editor**: VS Code engine with syntax highlighting, remote cursor awareness labels, and language selection.
-  - **Markdown Documentation**: Split-screen live preview with syntax-highlighted tables, code blocks, and formatting toolbar.
-- **Self-Hostable Signaling**: Zero-dependency WebSocket signaling service that handles SDP handshakes without touching document content.
+### How it works
 
----
+1. **Discovery:** Participants use signaling infrastructure to discover and establish connections.
+2. **Connection:** WebRTC negotiates direct communication between browsers.
+3. **Synchronization:** Shared workspace data can be synchronized using Yjs.
+4. **Collaboration:** Connected participants can work with shared state without routing every update through a central application server.
 
-## 🚀 Quickstart & Exact Commands
+A signaling server is still needed for connection establishment. STUN and TURN infrastructure may also be needed depending on network conditions.
 
-### 1. Prerequisites
-- Node.js v18+ (tested on Node v20.20+)
-- npm v9+
+## Why FORGE?
 
-### 2. Install Dependencies
+- **Peer-to-peer first:** Explore direct communication between collaborators.
+- **Real-time synchronization:** Investigate conflict-free collaborative state using CRDT technology.
+- **Browser-based:** Reduce the need for heavyweight local setup.
+- **Distributed systems:** Explore the engineering challenges of coordinating multiple independent clients.
+
+## Engineering Challenges
+
+FORGE is also an exploration of several interesting computer science problems:
+
+- Peer discovery and connection negotiation
+- NAT traversal and relay infrastructure
+- Distributed state synchronization
+- Concurrent editing and conflict resolution
+- Network reliability and reconnection
+- Multi-user resource management
+- Security and access control
+
+These challenges make FORGE more than a UI experiment.
+
+## Running Locally
+
+### Prerequisites
+
+- Node.js
+- npm
+- Git
+
+### Installation
+
 ```bash
+git clone https://github.com/milensebastian/FORGE.git
+
+cd FORGE
+
 npm install
-```
 
-### 3. Run Self-Hostable Signaling Server (Optional for Local / Isolated LAN)
-```bash
-npm run signaling
-```
-*Runs on `ws://0.0.0.0:4444` with a `/health` endpoint at `http://localhost:4444/health`.*
-
-### 4. Start the Web Application
-```bash
 npm run dev
 ```
-*Vite dev server will start at `http://localhost:5173`.*
 
-Open two separate browser tabs or share the generated `#room=...` link across your local network to test real-time P2P collaborative editing!
+Open the local URL provided by Vite.
+
+*Adjust the repository URL and commands if your actual repository name or package scripts differ.*
+
+## Project Status
+
+FORGE is an experimental project under active development.
+
+The project explores the feasibility of a browser-based, peer-to-peer collaborative development environment.
+
+Features, architecture and infrastructure may evolve as development continues.
+
+## Security Considerations
+
+Peer-to-peer communication introduces its own security challenges.
+
+Important areas include:
+
+- Authentication and participant authorization
+- Secure signaling
+- Peer connection validation
+- Transport encryption
+- Shared workspace access control
+- Protection against unauthorized collaboration sessions
+
+WebRTC provides encrypted transport, but that alone does not guarantee application-level authorization or end-to-end security across every part of the system.
+
+## Author
+
+**Milen Sebastian**
+
+Cybersecurity Undergraduate · Developer · Builder
+
+- Portfolio: https://milen.vercel.app/
+- GitHub: https://github.com/milensebastian
+- LinkedIn: https://www.linkedin.com/in/milensebastian/
 
 ---
 
-## 🧪 Testing
+<div align="center">
 
-Run the test suite across core and collaboration packages:
+**FORGE**
 
-```bash
-npm run test
-```
+*Build together. Think independently.*
 
----
-
-## 🔒 Security Model & Limitations
-
-See [SECURITY.md](./SECURITY.md) for complete details.
-- **Room IDs are Rendezvous Identifiers**: Anyone with the room ID can join the WebRTC session.
-- **DTLS Transport**: P2P data channels are encrypted using DTLS.
-- **NAT / Firewall Traversal**: Direct connectivity relies on STUN NAT discovery; symmetric enterprise NATs may require TURN relay.
-
----
-
-## 📜 License
-MIT
-
+</div>
