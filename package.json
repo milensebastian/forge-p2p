@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "npm run dev --workspace=@forge/web",
     "dev:all": "npm run dev --workspaces",
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present && node -e \"const fs=require('fs'); fs.cpSync('apps/web/dist', 'dist', {recursive:true});\"",
     "test": "vitest run",
     "test:watch": "vitest",
     "signaling": "node packages/collaboration/bin/signaling-server.cjs"
