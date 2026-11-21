@@ -23,6 +23,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onJoinRoom }) => {
     let active = true;
     async function checkActiveRooms() {
       if (typeof window === 'undefined') return;
+      // In production HTTPS, skip local LAN http scan to prevent mixed content warnings
+      if (window.location.protocol === 'https:') return;
       const host = window.location.hostname || 'localhost';
       try {
         const res = await fetch(`http://${host}:4444/health`, {

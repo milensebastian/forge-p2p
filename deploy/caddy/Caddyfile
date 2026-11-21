@@ -1,0 +1,30 @@
+# ==============================================================================
+# FORGE Signaling Server Caddy Reverse Proxy Configuration
+# Caddy automatically provisions and renews Let's Encrypt TLS certificates.
+# ==============================================================================
+
+signaling.example.com {
+    # Automatic HTTPS & HTTP -> HTTPS redirect is built into Caddy
+
+    # Optional access logging
+    log {
+        output file /var/log/caddy/signaling.log
+        format console
+    }
+
+    # Pass-through to local Node.js signaling process
+    # Caddy natively manages WebSocket upgrades and keep-alive streaming
+    reverse_proxy 127.0.0.1:4444 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+
+        # Keep WebSockets open across quiet periods
+        transport http {
+            read_buffer 4096
+            keepalive 3600s
+        }
+    }
+}
+

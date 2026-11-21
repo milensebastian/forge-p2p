@@ -1,0 +1,32 @@
+[Unit]
+Description=FORGE WebRTC Signaling Service
+Documentation=https://github.com/milensebastian/forge-p2p
+After=network.target
+
+[Service]
+Type=simple
+User=forge
+Group=forge
+WorkingDirectory=/opt/forge
+ExecStart=/usr/bin/node packages/collaboration/bin/signaling-server.cjs
+Restart=always
+RestartSec=3
+Environment=NODE_ENV=production
+Environment=PORT=4444
+Environment=HOST=127.0.0.1
+
+# Sandboxing & security hardening
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+CapabilityBoundingSet=
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=forge-signaling
+
+[Install]
+WantedBy=multi-user.target
+

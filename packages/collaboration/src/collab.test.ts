@@ -1,10 +1,10 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { resolveSignalingServers, DEFAULT_SIGNALING_SERVERS } from './signaling';
+import { resolveSignalingServers, resolveIceServers, DEFAULT_SIGNALING_SERVERS, DEFAULT_ICE_SERVERS } from './signaling';
 import { CollabManager } from './collab-manager';
 import { startSignalingServer } from './signaling-server';
 import http from 'http';
 
-describe('Signaling Server Resolution', () => {
+describe('Signaling and ICE Server Resolution', () => {
   it('returns default signaling servers when none provided', () => {
     const servers = resolveSignalingServers();
     expect(servers).toEqual(DEFAULT_SIGNALING_SERVERS);
@@ -13,6 +13,26 @@ describe('Signaling Server Resolution', () => {
   it('parses comma-separated environment strings properly', () => {
     const custom = resolveSignalingServers('ws://127.0.0.1:4444, wss://signaling.example.com');
     expect(custom).toEqual(['ws://127.0.0.1:4444', 'wss://signaling.example.com']);
+  });
+
+  it('resolves default ICE servers when none provided', () => {
+    const ice = resolveIceServers();
+    expect(ice).toEqual(DEFAULT_ICE_SERVERS);
+  });
+
+  it('parses JSON formatted ICE servers from environment', () => {
+    const customJson = JSON.stringify([
+      { urls: 'stun:stun.example.com:3478' },
+      { urls: 'turn:turn.example.com:3478', username: 'user', credential: 'pass' }
+    ]);
+    const ice = resolveIceServers(customJson);
+    expect(ice.length).toBe(2);
+    expect(ice[1].username).toBe('user');
+  });
+
+  it('parses comma-separated STUN/TURN URLs from environment', () => {
+    const ice = resolveIceServers('stun:stun.custom.com:3478, turn:turn.custom.com:3478');
+    expect(ice).toEqual([{ urls: ['stun:stun.custom.com:3478', 'turn:turn.custom.com:3478'] }]);
   });
 });
 

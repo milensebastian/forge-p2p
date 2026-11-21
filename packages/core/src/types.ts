@@ -48,7 +48,38 @@ export type ConnectionState =
   | 'connected'
   | 'syncing'
   | 'synced'
-  | 'mesh-saturated';
+  | 'mesh-saturated'
+  | 'reconnecting'
+  | 'failed';
+
+export type CandidateType = 'host' | 'srflx' | 'prflx' | 'relay' | 'unknown';
+
+export type OverallConnectionStatus =
+  | 'connecting'
+  | 'connected-p2p'
+  | 'connected-turn'
+  | 'reconnecting'
+  | 'failed'
+  | 'disconnected';
+
+export interface SelectedCandidatePair {
+  localType: string;
+  remoteType: string;
+  protocol?: string;
+  localAddress?: string;
+  remoteAddress?: string;
+  rtt?: number;
+}
+
+export interface PeerDiagnostic {
+  id: string;
+  connected: boolean;
+  synced: boolean;
+  iceConnectionState: string;
+  connectionState: string;
+  candidateType: CandidateType;
+  selectedCandidatePair?: SelectedCandidatePair;
+}
 
 export interface MeshStatus {
   state: ConnectionState;
@@ -57,5 +88,9 @@ export interface MeshStatus {
   signalingConnected: boolean;
   persistedToIndexedDB: boolean;
   error?: string | null;
+  overallConnectionStatus: OverallConnectionStatus;
+  activeCandidateType?: CandidateType;
+  turnConfigured: boolean;
+  iceServers?: RTCIceServer[];
+  peersDiagnostics?: PeerDiagnostic[];
 }
-

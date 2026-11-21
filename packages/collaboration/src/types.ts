@@ -1,4 +1,11 @@
-import { Participant, ConnectionState, DocumentMeta } from '@forge/core';
+import {
+  Participant,
+  ConnectionState,
+  DocumentMeta,
+  CandidateType,
+  OverallConnectionStatus,
+  PeerDiagnostic,
+} from '@forge/core';
 
 export interface LocalUserState {
   name: string;
@@ -10,14 +17,21 @@ export interface LocalUserState {
   };
 }
 
+export interface CollabStatusPayload {
+  state: ConnectionState;
+  connectedPeers: number;
+  signalingConnected: boolean;
+  persistedToIndexedDB: boolean;
+  error?: string | null;
+  overallConnectionStatus: OverallConnectionStatus;
+  activeCandidateType?: CandidateType;
+  turnConfigured: boolean;
+  iceServers?: RTCIceServer[];
+  peersDiagnostics?: PeerDiagnostic[];
+}
+
 export interface CollabEvents {
-  onStatusChange?: (status: {
-    state: ConnectionState;
-    connectedPeers: number;
-    signalingConnected: boolean;
-    persistedToIndexedDB: boolean;
-    error?: string | null;
-  }) => void;
+  onStatusChange?: (status: CollabStatusPayload) => void;
   onParticipantsChange?: (participants: Participant[]) => void;
   onFilesChange?: (files: DocumentMeta[]) => void;
   onIndexedDBSynced?: () => void;
@@ -31,4 +45,3 @@ export interface CollabConfig {
   disableIndexedDB?: boolean;
   disableWebRTC?: boolean;
 }
-

@@ -60,6 +60,9 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
     maxPeers: 5,
     signalingConnected: false,
     persistedToIndexedDB: false,
+    overallConnectionStatus: 'connecting',
+    turnConfigured: false,
+    peersDiagnostics: [],
   });
 
   const [isCopied, setIsCopied] = useState(false);
@@ -116,6 +119,11 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
             signalingConnected: status.signalingConnected,
             persistedToIndexedDB: status.persistedToIndexedDB,
             error: status.error,
+            overallConnectionStatus: status.overallConnectionStatus,
+            activeCandidateType: status.activeCandidateType,
+            turnConfigured: status.turnConfigured,
+            iceServers: status.iceServers,
+            peersDiagnostics: status.peersDiagnostics,
           }));
         },
         onParticipantsChange: (pList) => {
@@ -238,6 +246,50 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
   const docsList = files.filter((f) => f.type === 'markdown');
   const codeList = files.filter((f) => f.type === 'code');
 
+  // Render responsive connection badge
+  const renderHeaderBadge = () => {
+    if (meshStatus.overallConnectionStatus === 'connected-turn') {
+      return (
+        <Badge variant="indigo" dot>
+          Mesh: Connected (TURN Relay) • {meshStatus.peerCount + 1}/5
+        </Badge>
+      );
+    }
+    if (meshStatus.overallConnectionStatus === 'connected-p2p') {
+      return (
+        <Badge variant="emerald" dot>
+          Mesh: Connected (Direct P2P) • {meshStatus.peerCount + 1}/5
+        </Badge>
+      );
+    }
+    if (meshStatus.overallConnectionStatus === 'reconnecting') {
+      return (
+        <Badge variant="amber" dot>
+          Mesh: Reconnecting...
+        </Badge>
+      );
+    }
+    if (meshStatus.overallConnectionStatus === 'failed') {
+      return (
+        <Badge variant="rose" dot>
+          Mesh: Connection Failed
+        </Badge>
+      );
+    }
+    if (meshStatus.peerCount > 0) {
+      return (
+        <Badge variant="emerald" dot>
+          Mesh: {meshStatus.peerCount + 1}/5 Peers Connected
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant={meshStatus.signalingConnected ? 'cyan' : 'zinc'} dot>
+        {meshStatus.signalingConnected ? 'Mesh: Awaiting Peers (1/5)' : 'Mesh: Connecting...'}
+      </Badge>
+    );
+  };
+
   return (
     <div className="flex flex-col h-[100dvh] w-screen bg-[#090a0f] text-zinc-100 overflow-hidden font-sans pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       {/* Top Workspace Header */}
@@ -297,24 +349,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
 
         {/* Center: Live Mesh Status & IndexedDB Badge (Desktop) */}
         <div className="hidden lg:flex items-center gap-3">
-          <Badge
-            variant={
-              meshStatus.state === 'mesh-saturated'
-                ? 'amber'
-                : meshStatus.peerCount > 0
-                ? 'emerald'
-                : meshStatus.signalingConnected
-                ? 'cyan'
-                : 'zinc'
-            }
-            dot
-          >
-            {meshStatus.peerCount > 0
-              ? `Mesh: ${meshStatus.peerCount + 1}/5 Peers Connected`
-              : meshStatus.signalingConnected
-              ? 'Mesh: Waiting for Peers (1/5)'
-              : 'Mesh: Signaling Offline'}
-          </Badge>
+          {renderHeaderBadge()}
 
           <Tooltip content="All changes persisted locally to browser IndexedDB">
             <span className="flex items-center gap-1.5 text-xs text-zinc-400 bg-zinc-900/60 border border-zinc-800/80 px-2 py-0.5 rounded-full cursor-help">
@@ -553,6 +588,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
           participants={participants}
           meshStatus={meshStatus}
           signalingUrl={collabManager?.signalingUrl || undefined}
+          onRestartIce={() => collabManager?.restartIce()}
         />
       </div>
 
@@ -572,16 +608,28 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
           <span className="flex items-center gap-1.5">
             <span
               className={`w-2 h-2 rounded-full ${
-                meshStatus.peerCount > 0
+                meshStatus.overallConnectionStatus === 'connected-turn'
+                  ? 'bg-purple-400'
+                  : meshStatus.peerCount > 0
                   ? 'bg-emerald-400'
+                  : meshStatus.overallConnectionStatus === 'reconnecting'
+                  ? 'bg-amber-400 animate-pulse'
+                  : meshStatus.overallConnectionStatus === 'failed'
+                  ? 'bg-rose-400'
                   : meshStatus.signalingConnected
-                  ? 'bg-amber-400'
+                  ? 'bg-cyan-400'
                   : 'bg-zinc-500'
               }`}
             />
             <span>
-              {meshStatus.peerCount > 0
-                ? `${meshStatus.peerCount} Peer(s)`
+              {meshStatus.overallConnectionStatus === 'connected-turn'
+                ? `Relay: ${meshStatus.peerCount} Peer(s)`
+                : meshStatus.peerCount > 0
+                ? `${meshStatus.peerCount} Peer(s) P2P`
+                : meshStatus.overallConnectionStatus === 'reconnecting'
+                ? 'Reconnecting...'
+                : meshStatus.overallConnectionStatus === 'failed'
+                ? 'Connection Failed'
                 : meshStatus.signalingConnected
                 ? 'Signaling Ready'
                 : 'Offline'}

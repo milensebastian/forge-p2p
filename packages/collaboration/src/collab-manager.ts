@@ -7,12 +7,20 @@ import {
   SupportedLanguage,
   Participant,
   ConnectionState,
+  CandidateType,
+  OverallConnectionStatus,
+  PeerDiagnostic,
   DEFAULT_DOCUMENTS,
   INITIAL_README_CONTENT,
   INITIAL_CODE_CONTENT,
 } from '@forge/core';
-import { CollabConfig, CollabEvents, LocalUserState } from './types';
-import { resolveSignalingServers, DEFAULT_ICE_SERVERS } from './signaling';
+import { CollabConfig, CollabEvents, CollabStatusPayload, LocalUserState } from './types';
+import {
+  resolveSignalingServers,
+  resolveIceServers,
+  fetchDynamicIceServers,
+  DEFAULT_ICE_SERVERS,
+} from './signaling';
 
 export class CollabManager {
   public readonly roomId: string;
@@ -30,6 +38,14 @@ export class CollabManager {
   private currentPeersCount = 0;
   private lastError: string | null = null;
 
+  // WebRTC Diagnostics State
+  private iceServers: RTCIceServer[];
+  private turnConfigured = false;
+  private activeCandidateType: CandidateType = 'unknown';
+  private overallConnectionStatus: OverallConnectionStatus = 'connecting';
+  private peersDiagnostics: PeerDiagnostic[] = [];
+  private statsTimer: ReturnType<typeof setInterval> | null = null;
+
   constructor(config: CollabConfig, events: CollabEvents = {}) {
     this.roomId = config.roomId.toLowerCase().trim();
     this.localUser = { ...config.localUser };
@@ -37,15 +53,25 @@ export class CollabManager {
     this.ydoc = new Y.Doc();
     this.filesMap = this.ydoc.getMap<DocumentMeta>('workspace-files');
 
+    this.iceServers = config.iceServers || resolveIceServers();
+    this.turnConfigured = this.iceServers.some((s) => {
+      const urls = Array.isArray(s.urls) ? s.urls : [s.urls];
+      return urls.some((u) => u.startsWith('turn:') || u.startsWith('turns:'));
+    });
+
     // 1. Local Persistence (IndexedDB)
-    if (!config.disableIndexedDB && typeof window !== 'undefined' && window.indexedDB) {
+    if (!config.disableIndexedDB && typeof window !== 'undefined' && 'indexedDB' in window) {
       try {
-        this.persistence = new IndexeddbPersistence(`forge-workspace-${this.roomId}`, this.ydoc);
-        this.persistence.on('synced', () => {
+        const idbProvider = new IndexeddbPersistence(this.roomId, this.ydoc);
+        this.persistence = idbProvider;
+
+        idbProvider.on('synced', () => {
           this.persistenceSynced = true;
           this.ensureInitialContent();
           this.notifyStatus();
-          this.events.onIndexedDBSynced?.();
+          if (this.events.onIndexedDBSynced) {
+            this.events.onIndexedDBSynced();
+          }
         });
       } catch (err) {
         console.warn('[FORGE] IndexedDB initialization failed:', err);
@@ -60,6 +86,7 @@ export class CollabManager {
     if (!config.disableWebRTC && (typeof window !== 'undefined' || typeof WebSocket !== 'undefined')) {
       const signaling = config.signalingServers || resolveSignalingServers();
       this.signalingUrl = signaling[0] || null;
+
       try {
         this.provider = new WebrtcProvider(this.roomId, this.ydoc, {
           signaling,
@@ -67,8 +94,9 @@ export class CollabManager {
           maxConns: 20, // allows mesh handshake negotiations
           filterBcConns: true,
           peerOpts: {
+            trickle: true,
             config: {
-              iceServers: config.iceServers || DEFAULT_ICE_SERVERS,
+              iceServers: this.iceServers,
             },
           },
         });
@@ -86,12 +114,30 @@ export class CollabManager {
           this.currentPeersCount = (webrtcPeers?.length || 0) + (bcPeers?.length || 0);
           this.notifyStatus();
           this.notifyParticipants();
+          this.pollStats();
         });
 
         this.provider.on('synced', () => {
           this.ensureInitialContent();
           this.notifyStatus();
         });
+
+        // Start periodic WebRTC stats inspection
+        this.statsTimer = setInterval(() => {
+          this.pollStats();
+        }, 2000);
+
+        // Fetch dynamic TURN credentials in background if available
+        if (typeof window !== 'undefined' && this.signalingUrl) {
+          fetchDynamicIceServers(this.signalingUrl).then((dyn) => {
+            if (this.isDestroyed) return;
+            if (dyn.hasTurn) {
+              this.turnConfigured = true;
+              this.iceServers = dyn.iceServers;
+              this.notifyStatus();
+            }
+          });
+        }
       } catch (err) {
         console.error('[FORGE] WebRTC provider error:', err);
         this.lastError = 'WebRTC initialization failed';
@@ -139,11 +185,162 @@ export class CollabManager {
     }
   }
 
+  /**
+   * Periodically inspects native RTCPeerConnection stats across active mesh peers
+   * to determine direct P2P vs TURN Relay, candidate types, and latency.
+   */
+  public async pollStats(): Promise<void> {
+    if (this.isDestroyed || !this.provider) return;
+
+    const room = (this.provider as any).room;
+    if (!room || !room.webrtcConns) return;
+
+    const webrtcConns = Array.from((room.webrtcConns as Map<string, any>).entries());
+    const peersDiags: PeerDiagnostic[] = [];
+
+    let hasAnyRelay = false;
+    let hasAnyDirect = false;
+    let hasAnyReconnecting = false;
+    let hasAnyFailed = false;
+
+    for (const [peerId, conn] of webrtcConns) {
+      const pc: RTCPeerConnection | undefined = conn.peer?._pc;
+      const iceState = pc?.iceConnectionState || (conn.connected ? 'connected' : 'checking');
+      const connectionState = pc?.connectionState || (conn.connected ? 'connected' : 'connecting');
+
+      let candidateType: CandidateType = 'unknown';
+      let selectedPairInfo: PeerDiagnostic['selectedCandidatePair'] = undefined;
+
+      if (pc && typeof pc.getStats === 'function') {
+        try {
+          const stats = await pc.getStats();
+          let selectedPair: any = null;
+          const candidateMap = new Map<string, any>();
+
+          stats.forEach((report: any) => {
+            if (report.type === 'candidate-pair' && (report.selected || report.nominated || report.state === 'succeeded')) {
+              selectedPair = report;
+            } else if (report.type === 'local-candidate' || report.type === 'remote-candidate') {
+              candidateMap.set(report.id, report);
+            }
+          });
+
+          if (selectedPair) {
+            const local = candidateMap.get(selectedPair.localCandidateId);
+            const remote = candidateMap.get(selectedPair.remoteCandidateId);
+
+            const localType = local?.candidateType || 'unknown';
+            const remoteType = remote?.candidateType || 'unknown';
+
+            if (localType === 'relay' || remoteType === 'relay') {
+              candidateType = 'relay';
+              hasAnyRelay = true;
+            } else if (localType === 'host' && remoteType === 'host') {
+              candidateType = 'host';
+              hasAnyDirect = true;
+            } else {
+              candidateType = localType === 'prflx' || remoteType === 'prflx' ? 'prflx' : 'srflx';
+              hasAnyDirect = true;
+            }
+
+            selectedPairInfo = {
+              localType,
+              remoteType,
+              protocol: local?.protocol || selectedPair.protocol,
+              localAddress: local?.address || local?.ip,
+              remoteAddress: remote?.address || remote?.ip,
+              rtt: selectedPair.currentRoundTripTime ? Math.round(selectedPair.currentRoundTripTime * 1000) : undefined,
+            };
+          }
+        } catch {
+          // getStats may throw if PC is closing
+        }
+      }
+
+      if (iceState === 'disconnected') {
+        hasAnyReconnecting = true;
+      } else if (iceState === 'failed') {
+        hasAnyFailed = true;
+      }
+
+      peersDiags.push({
+        id: peerId,
+        connected: !!conn.connected,
+        synced: !!conn.synced,
+        iceConnectionState: iceState,
+        connectionState,
+        candidateType,
+        selectedCandidatePair: selectedPairInfo,
+      });
+    }
+
+    this.peersDiagnostics = peersDiags;
+
+    // Determine overall connection status
+    if (this.currentPeersCount === 0) {
+      this.overallConnectionStatus = this.signalingConnected ? 'connecting' : 'disconnected';
+      this.activeCandidateType = 'unknown';
+    } else if (hasAnyFailed && !hasAnyDirect && !hasAnyRelay) {
+      this.overallConnectionStatus = 'failed';
+    } else if (hasAnyReconnecting) {
+      this.overallConnectionStatus = 'reconnecting';
+    } else if (hasAnyRelay) {
+      this.overallConnectionStatus = 'connected-turn';
+      this.activeCandidateType = 'relay';
+    } else {
+      this.overallConnectionStatus = 'connected-p2p';
+      this.activeCandidateType = hasAnyDirect ? 'srflx' : 'host';
+    }
+
+    this.notifyStatus();
+  }
+
+  /**
+   * Triggers an explicit ICE restart and re-announces the room to the signaling mesh.
+   * Useful when transitioning networks (e.g. Wi-Fi to cellular) or recovering from stalled handshakes.
+   */
+  public restartIce(): void {
+    if (!this.provider) return;
+
+    const room = (this.provider as any).room;
+    if (room && room.webrtcConns) {
+      (room.webrtcConns as Map<string, any>).forEach((conn) => {
+        const pc: RTCPeerConnection | undefined = conn.peer?._pc;
+        if (pc && typeof (pc as any).restartIce === 'function') {
+          try {
+            (pc as any).restartIce();
+          } catch (e) {
+            console.warn('[FORGE] restartIce error:', e);
+          }
+        }
+      });
+
+      // Re-announce room to all signaling connections
+      if (Array.isArray((this.provider as any).signalingConns)) {
+        (this.provider as any).signalingConns.forEach((conn: any) => {
+          if (conn.connected) {
+            conn.send({
+              type: 'publish',
+              topic: this.roomId,
+              data: { type: 'announce', from: room.peerId },
+            });
+          }
+        });
+      }
+    }
+
+    this.pollStats();
+  }
+
   public notifyStatus(): void {
     if (this.isDestroyed || !this.events.onStatusChange) return;
 
     let state: ConnectionState = 'disconnected';
-    if (this.currentPeersCount >= 5) {
+    if (this.overallConnectionStatus === 'failed') {
+      state = 'failed';
+    } else if (this.overallConnectionStatus === 'reconnecting') {
+      state = 'reconnecting';
+    } else if (this.currentPeersCount >= 5) {
       state = 'mesh-saturated';
     } else if (this.currentPeersCount > 0) {
       state = 'connected';
@@ -151,57 +348,50 @@ export class CollabManager {
       state = 'connecting';
     }
 
-    this.events.onStatusChange({
+    const payload: CollabStatusPayload = {
       state,
       connectedPeers: this.currentPeersCount,
       signalingConnected: this.signalingConnected,
       persistedToIndexedDB: this.persistenceSynced,
       error: this.lastError,
-    });
+      overallConnectionStatus: this.overallConnectionStatus,
+      activeCandidateType: this.activeCandidateType,
+      turnConfigured: this.turnConfigured,
+      iceServers: this.iceServers,
+      peersDiagnostics: this.peersDiagnostics,
+    };
+
+    this.events.onStatusChange(payload);
   }
 
-  public notifyParticipants(): void {
+  private notifyParticipants(): void {
     if (this.isDestroyed || !this.events.onParticipantsChange || !this.provider) return;
 
     const states = this.provider.awareness.getStates();
-    const localId = this.provider.awareness.clientID;
-    const participants: Participant[] = [];
+    const localClientId = this.ydoc.clientID;
+    const participantsList: Participant[] = [];
 
-    // Add local user first
-    participants.push({
-      id: localId,
-      name: this.localUser.name,
-      color: this.localUser.color,
-      isLocal: true,
-      activeDocId: this.localUser.activeDocId,
-      cursor: this.localUser.cursor,
-      lastSeen: Date.now(),
-    });
-
-    // Add remote peers (limit to active participants)
-    states.forEach((state, clientID) => {
-      if (clientID === localId) return;
-      const user = state.user as LocalUserState & { lastSeen?: number };
-      if (user && user.name) {
-        participants.push({
-          id: clientID,
-          name: user.name,
-          color: user.color || '#3b82f6',
-          isLocal: false,
-          activeDocId: user.activeDocId,
-          cursor: user.cursor,
-          lastSeen: user.lastSeen,
+    states.forEach((state, clientId) => {
+      if (state.user) {
+        participantsList.push({
+          id: clientId,
+          name: state.user.name || `Peer #${clientId.toString().slice(-4)}`,
+          color: state.user.color || '#10b981',
+          isLocal: clientId === localClientId,
+          activeDocId: state.user.activeDocId,
+          cursor: state.user.cursor,
+          lastSeen: state.user.lastSeen || Date.now(),
         });
       }
     });
 
-    this.events.onParticipantsChange(participants);
+    participantsList.sort((a, b) => (a.isLocal ? -1 : b.isLocal ? 1 : 0));
+    this.events.onParticipantsChange(participantsList);
   }
 
-  public notifyFiles(): void {
+  private notifyFiles(): void {
     if (this.isDestroyed || !this.events.onFilesChange) return;
-    const files = this.getFiles();
-    this.events.onFilesChange(files);
+    this.events.onFilesChange(this.getFiles());
   }
 
   public getFiles(): DocumentMeta[] {
@@ -216,46 +406,40 @@ export class CollabManager {
     return this.ydoc.getText(`content:${docId}`);
   }
 
-  public addFile(name: string, type: DocumentType, language: SupportedLanguage, initialContent = ''): DocumentMeta {
-    const id = `doc-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    const now = Date.now();
-    const meta: DocumentMeta = {
+  public addFile(
+    name: string,
+    type: DocumentType,
+    language: SupportedLanguage,
+    initialContent = ''
+  ): DocumentMeta {
+    const id = `doc-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+    const newDoc: DocumentMeta = {
       id,
       name,
       type,
       language,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     };
 
     this.ydoc.transact(() => {
-      this.filesMap.set(id, meta);
-      const text = this.getText(id);
-      if (initialContent && text.length === 0) {
-        text.insert(0, initialContent);
+      this.filesMap.set(id, newDoc);
+      const ytext = this.getText(id);
+      if (initialContent) {
+        ytext.insert(0, initialContent);
       }
     });
 
-    return meta;
+    return newDoc;
   }
 
   public deleteFile(docId: string): void {
     this.ydoc.transact(() => {
       this.filesMap.delete(docId);
-      // We don't delete Y.Text directly to preserve CRDT history safely if needed
-    });
-  }
-
-  public renameFile(docId: string, newName: string): void {
-    const existing = this.filesMap.get(docId);
-    if (!existing) return;
-
-    this.ydoc.transact(() => {
-      this.filesMap.set(docId, {
-        ...existing,
-        name: newName,
-        updatedAt: Date.now(),
-      });
+      const ytext = this.getText(docId);
+      if (ytext.length > 0) {
+        ytext.delete(0, ytext.length);
+      }
     });
   }
 
@@ -299,29 +483,27 @@ export class CollabManager {
 
   public getDiagnostics() {
     const signaling = this.provider?.signalingUrls || [];
-    const room = (this.provider as any)?.room;
-    const webrtcConns = room ? Array.from((room.webrtcConns as Map<string, any>).entries()) : [];
-    const peers = webrtcConns.map(([id, conn]) => ({
-      id,
-      connected: !!conn.connected,
-      synced: !!conn.synced,
-      iceState: conn.peer?._pc?.iceConnectionState || (conn.connected ? 'connected' : 'checking'),
-      dataChannelState: conn.peer?._channel?.readyState || (conn.connected ? 'open' : 'connecting'),
-    }));
     return {
       roomId: this.roomId,
       signalingUrls: signaling,
       signalingConnected: this.signalingConnected,
       currentPeersCount: this.currentPeersCount,
+      overallConnectionStatus: this.overallConnectionStatus,
+      activeCandidateType: this.activeCandidateType,
+      turnConfigured: this.turnConfigured,
       isSecureContext: typeof window !== 'undefined' ? window.isSecureContext : false,
       protocol: typeof window !== 'undefined' ? window.location.protocol : '',
       host: typeof window !== 'undefined' ? window.location.host : '',
-      peers,
+      peers: this.peersDiagnostics,
     };
   }
 
   public destroy(): void {
     this.isDestroyed = true;
+    if (this.statsTimer) {
+      clearInterval(this.statsTimer);
+      this.statsTimer = null;
+    }
     if (this.provider) {
       try {
         this.provider.disconnect();
@@ -340,4 +522,3 @@ export class CollabManager {
     this.ydoc.destroy();
   }
 }
-
