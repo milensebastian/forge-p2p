@@ -63,8 +63,14 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
   // Compiler Flags state
   const [compilerFlags, setCompilerFlags] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(`forge_flags_${document.language}`);
-      if (saved !== null) return saved;
+      let saved = localStorage.getItem(`forge_flags_${document.language}`);
+      if (saved !== null) {
+        if (document.language === 'typescript' && saved.includes('es2022')) {
+          saved = saved.replace(/es2022/g, 'es2020');
+          localStorage.setItem(`forge_flags_${document.language}`, saved);
+        }
+        return saved;
+      }
     }
     return langConfig.defaultCompilerFlags || '';
   });
@@ -72,8 +78,12 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
   // Keep flags updated when switching languages
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(`forge_flags_${document.language}`);
+      let saved = localStorage.getItem(`forge_flags_${document.language}`);
       if (saved !== null) {
+        if (document.language === 'typescript' && saved.includes('es2022')) {
+          saved = saved.replace(/es2022/g, 'es2020');
+          localStorage.setItem(`forge_flags_${document.language}`, saved);
+        }
         setCompilerFlags(saved);
         return;
       }

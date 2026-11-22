@@ -226,6 +226,11 @@ async function executeWithJudge0(
 
   // If compileOnly is requested for C/C++, append -fsyntax-only if not present
   let effectiveFlags = flags;
+  if (langConfig.id === 'typescript') {
+    // Judge0 tsc accepts targets up to es2020 or esnext
+    effectiveFlags = effectiveFlags.replace(/es202[1-9]/g, 'es2020');
+  }
+
   if (options.compileOnly) {
     if ((langConfig.id === 'cpp' || langConfig.id === 'c') && !effectiveFlags.includes('-fsyntax-only')) {
       effectiveFlags = `${effectiveFlags} -fsyntax-only`.trim();
