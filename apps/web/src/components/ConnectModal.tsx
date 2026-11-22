@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { Modal, Button, Badge } from '@forge/ui';
-import { QrCode, Copy, Check, Smartphone, Wifi, ExternalLink } from 'lucide-react';
+import { Modal, Button } from '@forge/ui';
+import { Copy, Check, Smartphone, Wifi } from 'lucide-react';
 
 interface ConnectModalProps {
   isOpen: boolean;
@@ -25,7 +25,6 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({ isOpen, onClose, roo
       const protocol = window.location.protocol;
       const pathname = window.location.pathname;
 
-      // If on localhost, attempt to fetch LAN IP from signaling server health
       if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         try {
           const res = await fetch(`http://${window.location.hostname}:4444/health`, {
@@ -50,10 +49,10 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({ isOpen, onClose, roo
 
       try {
         const url = await QRCode.toDataURL(finalUrl, {
-          width: 256,
+          width: 240,
           margin: 1.5,
           color: {
-            dark: '#090a0f',
+            dark: '#09090b',
             light: '#ffffff',
           },
         });
@@ -92,80 +91,73 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({ isOpen, onClose, roo
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Connect Mobile / Peer Device"
-      description="Scan with your phone camera or share the direct LAN link to join this room in real time."
+      title="Invite Peers to Workspace"
+      description="Scan with a mobile camera or share the direct link to collaborate in real time."
       className="max-w-md"
     >
       <div className="space-y-4">
         {/* QR Code Container */}
         <div className="flex flex-col items-center justify-center p-4 bg-zinc-950 border border-zinc-800 rounded-xl">
           {qrDataUrl ? (
-            <div className="p-3 bg-white rounded-xl shadow-lg shadow-black/40">
+            <div className="p-2.5 bg-white rounded-lg shadow-sm">
               <img
                 src={qrDataUrl}
-                alt={`QR code to join room ${roomId}`}
-                className="w-48 h-48 sm:w-52 sm:h-52 object-contain"
+                alt={`QR code for room ${roomId}`}
+                className="w-44 h-44 sm:w-48 sm:h-48 object-contain"
               />
             </div>
           ) : (
-            <div className="w-48 h-48 sm:w-52 sm:h-52 flex items-center justify-center text-zinc-500 text-xs animate-pulse">
-              Generating QR Code...
+            <div className="w-44 h-44 sm:w-48 sm:h-48 flex items-center justify-center text-zinc-600 text-xs font-mono">
+              Generating QR...
             </div>
           )}
 
-          <div className="flex items-center gap-2 mt-3 text-xs text-zinc-300">
-            <Smartphone className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>Point your phone camera at the screen to open</span>
+          <div className="flex items-center gap-1.5 mt-3 text-xs text-zinc-400">
+            <Smartphone className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+            <span>Point camera to join on mobile device</span>
           </div>
         </div>
 
-        {/* Room ID Badge & Copy */}
-        <div className="p-3 bg-zinc-950/80 border border-zinc-800/80 rounded-xl space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-zinc-400 font-medium">Room ID:</span>
+        {/* Room ID */}
+        <div className="p-3 bg-zinc-950 border border-zinc-800 rounded-xl space-y-1.5">
+          <div className="flex items-center justify-between text-xs text-zinc-400">
+            <span>Room ID</span>
             <button
               onClick={handleCopyRoomId}
-              className="flex items-center gap-1 text-[11px] text-emerald-400 hover:text-emerald-300 transition-colors"
+              className="flex items-center gap-1 text-[11px] text-zinc-300 hover:text-white transition-colors"
             >
-              {isRoomCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              {isRoomCopied ? 'Copied' : 'Copy Room ID'}
+              {isRoomCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+              {isRoomCopied ? 'Copied' : 'Copy'}
             </button>
           </div>
-          <div className="font-mono text-sm font-semibold text-emerald-300 select-all break-all bg-zinc-900 px-2.5 py-1.5 rounded border border-zinc-800">
+          <div className="font-mono text-xs text-zinc-200 select-all break-all bg-zinc-900/80 px-2.5 py-1.5 rounded border border-zinc-850">
             {roomId}
           </div>
         </div>
 
         {/* Mobile LAN Share Link */}
-        <div className="p-3 bg-zinc-950/80 border border-zinc-800/80 rounded-xl space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-zinc-400 font-medium">Mobile Direct Link:</span>
+        <div className="p-3 bg-zinc-950 border border-zinc-800 rounded-xl space-y-1.5">
+          <div className="flex items-center justify-between text-xs text-zinc-400">
+            <span>Direct Link</span>
             <button
               onClick={handleCopyUrl}
-              className="flex items-center gap-1 text-[11px] text-emerald-400 hover:text-emerald-300 transition-colors"
+              className="flex items-center gap-1 text-[11px] text-zinc-300 hover:text-white transition-colors"
             >
-              {isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              {isCopied ? 'Copied' : 'Copy Link'}
+              {isCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+              {isCopied ? 'Copied' : 'Copy'}
             </button>
           </div>
-          <div className="font-mono text-xs text-zinc-300 select-all break-all bg-zinc-900 px-2.5 py-1.5 rounded border border-zinc-800 line-clamp-2">
+          <div className="font-mono text-xs text-zinc-400 select-all break-all bg-zinc-900/80 px-2.5 py-1.5 rounded border border-zinc-850 truncate">
             {shareUrl || 'Resolving...'}
           </div>
-        </div>
-
-        {/* Notice on Wi-Fi connection */}
-        <div className="flex items-start gap-2 p-2.5 rounded-lg bg-zinc-900/60 border border-zinc-800/60 text-[11px] text-zinc-400">
-          <Wifi className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
-          <span>Both phone and laptop must be on the same local network (Wi-Fi or phone hotspot) to establish the direct WebRTC peer mesh.</span>
         </div>
       </div>
 
       <div className="mt-5 flex justify-end">
-        <Button variant="secondary" onClick={onClose}>
-          Close
+        <Button variant="secondary" size="sm" onClick={onClose}>
+          Done
         </Button>
       </div>
     </Modal>
   );
 };
-

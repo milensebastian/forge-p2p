@@ -10,14 +10,10 @@ import {
   Heading2,
   Code,
   List,
-  ListOrdered,
   Quote,
   Columns,
   Maximize2,
   BookOpen,
-  FileText,
-  Eye,
-  PenTool,
 } from 'lucide-react';
 
 interface MarkdownEditorViewProps {
@@ -29,7 +25,6 @@ type ViewMode = 'split' | 'editor' | 'preview';
 
 const LOCAL_ORIGIN = 'markdown-local';
 
-/** Compute the minimal index, deleteLength, and insertText between old and new strings */
 function computeStringDiff(oldStr: string, newStr: string) {
   let start = 0;
   while (start < oldStr.length && start < newStr.length && oldStr[start] === newStr[start]) {
@@ -72,16 +67,13 @@ export const MarkdownEditorView: React.FC<MarkdownEditorViewProps> = ({
     prevContentRef.current = initialContent;
 
     const observer = (event: any) => {
-      // Ignore edits that originated from this local textarea
       if (event.transaction && event.transaction.origin === LOCAL_ORIGIN) return;
-
       const newVal = ytext.toString();
       prevContentRef.current = newVal;
       setContent(newVal);
     };
 
     ytext.observe(observer);
-
     return () => {
       ytext.unobserve(observer);
     };
@@ -107,7 +99,6 @@ export const MarkdownEditorView: React.FC<MarkdownEditorViewProps> = ({
       prevContentRef.current = newText;
     }
 
-    // Update cursor position in awareness
     const cursorIndex = e.target.selectionStart;
     const lines = newText.substring(0, cursorIndex).split('\n');
     const line = lines.length;
@@ -143,182 +134,154 @@ export const MarkdownEditorView: React.FC<MarkdownEditorViewProps> = ({
     }, 0);
   };
 
-  // Safe HTML output from marked
   const renderedHtml = React.useMemo(() => {
     try {
       return marked.parse(content || '', { async: false, gfm: true, breaks: true }) as string;
     } catch {
-      return '<p class="text-rose-400">Failed to render markdown</p>';
+      return '<p class="text-zinc-500">Failed to render markdown</p>';
     }
   }, [content]);
 
-  // Stats
-  const wordCount = (content.trim().match(/\S+/g) || []).length;
-  const lineCount = content.split('\n').length;
-
   return (
-    <div className="flex flex-col h-full bg-[#0c0e14]">
-      {/* Markdown Toolbar */}
-      <div className="flex items-center justify-between px-2 sm:px-4 py-1.5 sm:py-2 bg-zinc-900/80 border-b border-zinc-800 shrink-0 gap-2 overflow-x-auto no-scrollbar">
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-          <FileText className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span className="text-xs font-mono font-medium text-zinc-200 mr-1 sm:mr-2 max-w-[100px] sm:max-w-none truncate">
-            {document.name}
-          </span>
-
-          <div className="h-4 w-px bg-zinc-800 mx-1 hidden sm:block" />
-
-          {/* Quick Format Buttons */}
-          <div className="flex items-center gap-0.5">
-            <button
-              onClick={() => insertFormatting('**', '**', 'bold text')}
-              className="p-1.5 min-h-[32px] min-w-[32px] flex items-center justify-center rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
-              title="Bold"
-              aria-label="Bold text"
-            >
-              <Bold className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => insertFormatting('*', '*', 'italic text')}
-              className="p-1.5 min-h-[32px] min-w-[32px] flex items-center justify-center rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
-              title="Italic"
-              aria-label="Italic text"
-            >
-              <Italic className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => insertFormatting('# ', '', 'Heading 1')}
-              className="p-1.5 min-h-[32px] min-w-[32px] flex items-center justify-center rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
-              title="Heading 1"
-              aria-label="Heading 1"
-            >
-              <Heading1 className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => insertFormatting('## ', '', 'Heading 2')}
-              className="p-1.5 min-h-[32px] min-w-[32px] flex items-center justify-center rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
-              title="Heading 2"
-              aria-label="Heading 2"
-            >
-              <Heading2 className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => insertFormatting('`', '`', 'code')}
-              className="p-1.5 min-h-[32px] min-w-[32px] flex items-center justify-center rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
-              title="Inline Code"
-              aria-label="Inline Code"
-            >
-              <Code className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => insertFormatting('> ', '', 'Quote')}
-              className="p-1.5 min-h-[32px] min-w-[32px] flex items-center justify-center rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors hidden sm:flex"
-              title="Blockquote"
-              aria-label="Blockquote"
-            >
-              <Quote className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => insertFormatting('- ', '', 'List item')}
-              className="p-1.5 min-h-[32px] min-w-[32px] flex items-center justify-center rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors hidden sm:flex"
-              title="Bulleted List"
-              aria-label="Bulleted List"
-            >
-              <List className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => insertFormatting('1. ', '', 'Numbered item')}
-              className="p-1.5 min-h-[32px] min-w-[32px] flex items-center justify-center rounded hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors hidden sm:flex"
-              title="Numbered List"
-              aria-label="Numbered List"
-            >
-              <ListOrdered className="w-3.5 h-3.5" />
-            </button>
-          </div>
+    <div className="flex flex-col h-full bg-zinc-950">
+      {/* Markdown Sub-toolbar */}
+      <div className="h-9 px-3 border-b border-zinc-850 flex items-center justify-between shrink-0 gap-2 bg-zinc-950">
+        {/* Quick Format Tools */}
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={() => insertFormatting('**', '**', 'bold')}
+            className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850 transition-colors"
+            title="Bold"
+            aria-label="Bold"
+          >
+            <Bold className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => insertFormatting('*', '*', 'italic')}
+            className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850 transition-colors"
+            title="Italic"
+            aria-label="Italic"
+          >
+            <Italic className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => insertFormatting('# ', '', 'Heading 1')}
+            className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850 transition-colors"
+            title="Heading 1"
+            aria-label="Heading 1"
+          >
+            <Heading1 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => insertFormatting('## ', '', 'Heading 2')}
+            className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850 transition-colors"
+            title="Heading 2"
+            aria-label="Heading 2"
+          >
+            <Heading2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => insertFormatting('`', '`', 'code')}
+            className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850 transition-colors"
+            title="Inline Code"
+            aria-label="Inline Code"
+          >
+            <Code className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => insertFormatting('- ', '', 'List item')}
+            className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850 transition-colors hidden sm:flex"
+            title="Bullet List"
+            aria-label="Bullet List"
+          >
+            <List className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => insertFormatting('> ', '', 'Quote')}
+            className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850 transition-colors hidden sm:flex"
+            title="Quote"
+            aria-label="Quote"
+          >
+            <Quote className="w-3.5 h-3.5" />
+          </button>
         </div>
 
-        {/* View Mode Switcher */}
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[11px] text-zinc-500 hidden md:inline">
-            {wordCount} words • {lineCount} lines
-          </span>
-
-          {/* Desktop 3-Way Switcher */}
-          <div className="hidden md:flex items-center bg-zinc-950 border border-zinc-800 rounded-md p-0.5">
+        {/* View Mode Segmented Controls */}
+        <div className="flex items-center gap-2">
+          {/* Desktop 3-Way Switch */}
+          <div className="hidden md:flex items-center bg-zinc-900 border border-zinc-800 rounded-md p-0.5">
             <button
               onClick={() => setViewMode('editor')}
               className={`p-1 rounded text-xs transition-colors ${
-                viewMode === 'editor' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'
+                viewMode === 'editor' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200'
               }`}
-              title="Editor Only"
+              title="Editor only"
             >
               <Maximize2 className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => setViewMode('split')}
               className={`p-1 rounded text-xs transition-colors ${
-                viewMode === 'split' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'
+                viewMode === 'split' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200'
               }`}
-              title="Split View"
+              title="Split view"
             >
               <Columns className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => setViewMode('preview')}
               className={`p-1 rounded text-xs transition-colors ${
-                viewMode === 'preview' ? 'bg-zinc-800 text-emerald-400' : 'text-zinc-500 hover:text-zinc-300'
+                viewMode === 'preview' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200'
               }`}
-              title="Preview Only"
+              title="Preview only"
             >
               <BookOpen className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          {/* Mobile 2-Tab Segmented Control */}
-          <div className="flex md:hidden items-center bg-zinc-950 border border-zinc-800 rounded-lg p-0.5">
+          {/* Mobile 2-Way Switch */}
+          <div className="flex md:hidden items-center bg-zinc-900 border border-zinc-800 rounded-md p-0.5">
             <button
               onClick={() => setViewMode('editor')}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
-                viewMode !== 'preview' ? 'bg-zinc-800 text-emerald-400 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'
+              className={`px-2 py-0.5 text-xs font-medium rounded transition-colors ${
+                viewMode !== 'preview' ? 'bg-zinc-800 text-white' : 'text-zinc-400'
               }`}
             >
-              <PenTool className="w-3 h-3" />
-              <span>Write</span>
+              Edit
             </button>
             <button
               onClick={() => setViewMode('preview')}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
-                viewMode === 'preview' ? 'bg-zinc-800 text-emerald-400 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'
+              className={`px-2 py-0.5 text-xs font-medium rounded transition-colors ${
+                viewMode === 'preview' ? 'bg-zinc-800 text-white' : 'text-zinc-400'
               }`}
             >
-              <Eye className="w-3 h-3" />
-              <span>Preview</span>
+              Preview
             </button>
           </div>
         </div>
       </div>
 
-      {/* Main Content Area */}
+      {/* Editor & Preview Area */}
       <div className="flex-1 overflow-hidden">
         {viewMode === 'split' && (
           <SplitPane
             initialRatio={0.5}
             left={
-              <div className="h-full flex flex-col bg-[#0c0e14]">
+              <div className="h-full flex flex-col bg-zinc-950">
                 <textarea
                   ref={textareaRef}
                   value={content}
                   onChange={handleTextChange}
-                  placeholder="Type Markdown documentation here... Keystrokes sync via Yjs CRDT."
-                  className="w-full h-full p-3 sm:p-4 bg-transparent text-zinc-200 font-mono text-base sm:text-sm leading-relaxed resize-none focus:outline-none placeholder-zinc-600 selection:bg-emerald-500/30 touch-manipulation"
+                  placeholder="Start writing markdown..."
+                  className="w-full h-full p-4 sm:p-6 bg-transparent text-zinc-200 font-mono text-sm leading-relaxed resize-none focus:outline-none placeholder-zinc-700 selection:bg-zinc-800"
                   spellCheck={false}
                 />
               </div>
             }
             right={
-              <div className="h-full overflow-y-auto p-4 sm:p-6 bg-zinc-950/60">
+              <div className="h-full overflow-y-auto p-4 sm:p-6 bg-zinc-950 border-l border-zinc-850">
                 <div
-                  className="markdown-body max-w-3xl mx-auto"
+                  className="markdown-body max-w-2xl mx-auto"
                   dangerouslySetInnerHTML={{ __html: renderedHtml }}
                 />
               </div>
@@ -327,13 +290,13 @@ export const MarkdownEditorView: React.FC<MarkdownEditorViewProps> = ({
         )}
 
         {viewMode === 'editor' && (
-          <div className="h-full flex flex-col bg-[#0c0e14]">
+          <div className="h-full flex flex-col bg-zinc-950">
             <textarea
               ref={textareaRef}
               value={content}
               onChange={handleTextChange}
-              placeholder="Type Markdown documentation here..."
-              className="w-full h-full p-4 sm:p-6 bg-transparent text-zinc-200 font-mono text-base sm:text-sm leading-relaxed resize-none focus:outline-none placeholder-zinc-600 selection:bg-emerald-500/30 touch-manipulation"
+              placeholder="Start writing markdown..."
+              className="w-full h-full p-4 sm:p-6 bg-transparent text-zinc-200 font-mono text-sm leading-relaxed resize-none focus:outline-none placeholder-zinc-700 selection:bg-zinc-800"
               spellCheck={false}
             />
           </div>
@@ -342,7 +305,7 @@ export const MarkdownEditorView: React.FC<MarkdownEditorViewProps> = ({
         {viewMode === 'preview' && (
           <div className="h-full overflow-y-auto p-4 sm:p-8 bg-zinc-950">
             <div
-              className="markdown-body max-w-4xl mx-auto"
+              className="markdown-body max-w-3xl mx-auto"
               dangerouslySetInnerHTML={{ __html: renderedHtml }}
             />
           </div>

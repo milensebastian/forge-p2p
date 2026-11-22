@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, Button } from '@forge/ui';
-import { ShieldAlert, Lock, ServerOff, Radio, CheckCircle2 } from 'lucide-react';
+import { Shield, Lock, HardDrive, Radio } from 'lucide-react';
 
 interface SecurityModalProps {
   isOpen: boolean;
@@ -12,62 +12,61 @@ export const SecurityModal: React.FC<SecurityModalProps> = ({ isOpen, onClose })
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="FORGE Security Model & Limitations"
-      description="Architectural boundary and privacy disclosure for this peer-to-peer workspace."
-      className="max-w-xl"
+      title="Architecture & Security"
+      description="Architectural boundaries and data flow in FORGE."
+      className="max-w-lg"
     >
-      <div className="space-y-4 text-xs text-zinc-300 leading-relaxed max-h-[60vh] overflow-y-auto pr-1">
-        {/* Zero Cloud Guarantee */}
-        <div className="p-3 rounded-lg bg-emerald-950/30 border border-emerald-800/40 space-y-1.5">
-          <div className="flex items-center gap-2 font-semibold text-emerald-300 text-sm">
-            <ServerOff className="w-4 h-4 text-emerald-400" />
-            Zero Server Document Storage
+      <div className="space-y-3 text-xs text-zinc-300 leading-relaxed max-h-[60vh] overflow-y-auto pr-1">
+        {/* Zero Server Storage */}
+        <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 space-y-1">
+          <div className="flex items-center gap-2 font-medium text-zinc-200">
+            <HardDrive className="w-3.5 h-3.5 text-zinc-400" />
+            <span>Zero Server Document Storage</span>
           </div>
-          <p className="text-zinc-300">
-            FORGE has no centralized database or cloud storage. Keystrokes, source code, and markdown documents are stored locally in your browser's IndexedDB and synchronized directly with connected peers via WebRTC <code className="text-emerald-300 bg-zinc-950 px-1 py-0.5 rounded">RTCDataChannel</code>.
+          <p className="text-zinc-400 text-[11px] leading-relaxed">
+            FORGE has no central database. Documents and CRDT states are saved locally in browser IndexedDB and synced peer-to-peer over WebRTC data channels.
           </p>
         </div>
 
-        {/* Room IDs are NOT Passwords */}
-        <div className="p-3 rounded-lg bg-amber-950/30 border border-amber-800/40 space-y-1.5">
-          <div className="flex items-center gap-2 font-semibold text-amber-300 text-sm">
-            <ShieldAlert className="w-4 h-4 text-amber-400" />
-            Room IDs are Rendezvous Identifiers, Not Credentials
+        {/* DTLS Transport */}
+        <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 space-y-1">
+          <div className="flex items-center gap-2 font-medium text-zinc-200">
+            <Lock className="w-3.5 h-3.5 text-zinc-400" />
+            <span>Transport Security (DTLS)</span>
           </div>
-          <p className="text-zinc-300">
-            Anyone possessing the Room ID can join this session topic and exchange CRDT state. There is no user password authentication or access control list in this MVP. Do not publish room links in public channels if your workspace contains confidential code.
+          <p className="text-zinc-400 text-[11px] leading-relaxed">
+            Data channels are encrypted using standard WebRTC DTLS 1.2 in transit between peers.
           </p>
         </div>
 
-        {/* DTLS Transport Security */}
-        <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 space-y-1.5">
-          <div className="flex items-center gap-2 font-semibold text-cyan-300 text-sm">
-            <Lock className="w-4 h-4 text-cyan-400" />
-            Transport Security (DTLS)
+        {/* Room Access */}
+        <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 space-y-1">
+          <div className="flex items-center gap-2 font-medium text-zinc-200">
+            <Shield className="w-3.5 h-3.5 text-zinc-400" />
+            <span>Room Identifiers</span>
           </div>
-          <p className="text-zinc-400">
-            All direct peer-to-peer data channels use standard WebRTC DTLS encryption in transit. However, payload-level application encryption with authenticated key exchange is not yet implemented.
+          <p className="text-zinc-400 text-[11px] leading-relaxed">
+            Anyone with the room link can join the collaborative session. Keep room links private if sharing sensitive engineering drafts.
           </p>
         </div>
 
-        {/* Signaling & NAT */}
-        <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 space-y-1.5">
-          <div className="flex items-center gap-2 font-semibold text-zinc-200 text-sm">
-            <Radio className="w-4 h-4 text-indigo-400" />
-            NAT Traversal & Signaling Role
+        {/* Signaling */}
+        <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 space-y-1">
+          <div className="flex items-center gap-2 font-medium text-zinc-200">
+            <Radio className="w-3.5 h-3.5 text-zinc-400" />
+            <span>Signaling & NAT Traversal</span>
           </div>
-          <p className="text-zinc-400">
-            The WebSocket signaling server only facilitates SDP offer/answer handshakes. It never receives or inspects document contents. Due to symmetric NATs and firewalls, direct peer connections are not guaranteed on all networks without a TURN relay.
+          <p className="text-zinc-400 text-[11px] leading-relaxed">
+            The signaling server brokers WebRTC handshakes (SDP/ICE) and provides TURN relay credentials when direct P2P connections are blocked by symmetric NATs. It never inspects document contents.
           </p>
         </div>
       </div>
 
-      <div className="mt-6 flex justify-end">
-        <Button variant="primary" onClick={onClose}>
-          Understood
+      <div className="mt-5 flex justify-end">
+        <Button variant="secondary" size="sm" onClick={onClose}>
+          Close
         </Button>
       </div>
     </Modal>
   );
 };
-

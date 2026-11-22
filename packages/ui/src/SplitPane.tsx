@@ -71,11 +71,11 @@ export const SplitPane: React.FC<SplitPaneProps> = ({
       <div
         onMouseDown={() => setIsDragging(true)}
         className={cn(
-          'relative w-1.5 h-full cursor-col-resize shrink-0 transition-colors group z-20 flex items-center justify-center',
-          isDragging ? 'bg-emerald-500' : 'bg-zinc-800 hover:bg-zinc-700'
+          'relative w-1 h-full cursor-col-resize shrink-0 transition-colors group z-20 hover:bg-zinc-700',
+          isDragging ? 'bg-zinc-500' : 'bg-zinc-800'
         )}
       >
-        <div className="w-0.5 h-6 bg-zinc-600 rounded-full group-hover:bg-zinc-400" />
+        <div className="absolute inset-y-0 -left-1 -right-1" />
       </div>
 
       <div
@@ -87,4 +87,3 @@ export const SplitPane: React.FC<SplitPaneProps> = ({
     </div>
   );
 };
-

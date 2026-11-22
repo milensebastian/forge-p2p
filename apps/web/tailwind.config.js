@@ -9,11 +9,16 @@ export default {
   theme: {
     extend: {
       colors: {
+        zinc: {
+          850: '#1f1f23',
+          925: '#121215',
+          950: '#09090b',
+        },
         forge: {
-          dark: '#090a0f',
-          surface: '#12141c',
-          card: '#181b26',
-          border: '#262a3b',
+          bg: '#09090b',
+          surface: '#121215',
+          card: '#18181b',
+          border: '#27272a',
           accent: '#10b981',
         },
       },
@@ -25,4 +30,3 @@ export default {
   },
   plugins: [],
 };
-

@@ -17,21 +17,26 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseStyles =
-    'inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:opacity-50 disabled:pointer-events-none select-none rounded-md';
+    'inline-flex items-center justify-center font-medium transition-all duration-150 focus:outline-none focus-visible:ring-1 focus-visible:ring-zinc-400 disabled:opacity-40 disabled:pointer-events-none select-none rounded-lg';
 
   const variants = {
-    primary: 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-950',
-    secondary: 'bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700/60 shadow-sm',
-    ghost: 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60',
-    danger: 'bg-rose-900/60 hover:bg-rose-900 text-rose-200 border border-rose-700/50',
-    outline: 'border border-zinc-700 hover:border-zinc-500 text-zinc-300 hover:text-white bg-transparent',
+    primary:
+      'bg-zinc-100 hover:bg-white text-zinc-950 font-medium active:scale-[0.99] shadow-sm',
+    secondary:
+      'bg-zinc-900 hover:bg-zinc-850 text-zinc-200 border border-zinc-800 hover:border-zinc-700 active:scale-[0.99]',
+    ghost:
+      'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-850/80 active:scale-[0.99]',
+    danger:
+      'bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/40 active:scale-[0.99]',
+    outline:
+      'border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white bg-transparent active:scale-[0.99]',
   };
 
   const sizes = {
     xs: 'text-xs px-2 py-1 gap-1',
     sm: 'text-xs px-2.5 py-1.5 gap-1.5',
-    md: 'text-sm px-3 py-1.5 gap-2',
-    lg: 'text-sm px-4 py-2 gap-2.5',
+    md: 'text-sm px-3.5 py-2 gap-2',
+    lg: 'text-sm px-5 py-2.5 gap-2.5',
   };
 
   return (
@@ -45,4 +50,3 @@ export const Button: React.FC<ButtonProps> = ({
     </button>
   );
 };
-

@@ -14,12 +14,12 @@ export const Badge: React.FC<BadgeProps> = ({
   ...props
 }) => {
   const variants = {
-    emerald: 'bg-emerald-950/80 text-emerald-300 border-emerald-800/60',
-    cyan: 'bg-cyan-950/80 text-cyan-300 border-cyan-800/60',
-    amber: 'bg-amber-950/80 text-amber-300 border-amber-800/60',
-    rose: 'bg-rose-950/80 text-rose-300 border-rose-800/60',
-    indigo: 'bg-indigo-950/80 text-indigo-300 border-indigo-800/60',
-    zinc: 'bg-zinc-800/80 text-zinc-300 border-zinc-700/60',
+    emerald: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    cyan: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+    amber: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    rose: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+    indigo: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
+    zinc: 'bg-zinc-800/60 text-zinc-300 border-zinc-700/40',
   };
 
   const dotColors = {
@@ -34,7 +34,7 @@ export const Badge: React.FC<BadgeProps> = ({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-medium rounded-full border',
+        'inline-flex items-center gap-1.5 px-2 py-0.5 text-[11px] font-medium rounded-md border',
         variants[variant],
         className
       )}
@@ -42,11 +42,10 @@ export const Badge: React.FC<BadgeProps> = ({
     >
       {dot && (
         <span
-          className={cn('w-1.5 h-1.5 rounded-full shrink-0 animate-pulse', dotColors[variant])}
+          className={cn('w-1.5 h-1.5 rounded-full shrink-0', dotColors[variant])}
         />
       )}
       {children}
     </span>
   );
 };
-
