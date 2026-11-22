@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 const http = require('http');
+const https = require('https');
 const os = require('os');
 const crypto = require('crypto');
 const { WebSocketServer, WebSocket } = require('ws');
@@ -13,6 +14,77 @@ const turnRealm = process.env.TURN_REALM || process.env.TURN_DOMAIN || '';
 const turnUrlsRaw = process.env.TURN_URLS || '';
 const turnStaticUser = process.env.TURN_USERNAME || '';
 const turnStaticCred = process.env.TURN_CREDENTIAL || process.env.TURN_PASSWORD || '';
+const xirsysIdent = process.env.XIRSYS_IDENT || '';
+const xirsysSecret = process.env.XIRSYS_SECRET || '';
+const xirsysChannel = process.env.XIRSYS_CHANNEL || 'default';
+
+let cachedXirsys = null;
+
+async function fetchXirsysIceServers() {
+  if (!xirsysIdent || !xirsysSecret) return null;
+  if (cachedXirsys && Date.now() < cachedXirsys.expiresAt) {
+    return cachedXirsys.iceServers;
+  }
+
+  try {
+    const auth = Buffer.from(`${xirsysIdent}:${xirsysSecret}`).toString('base64');
+    const postData = JSON.stringify({ format: 'urls' });
+
+    return await new Promise((resolve, reject) => {
+      const xReq = https.request(
+        {
+          hostname: 'global.xirsys.net',
+          path: `/_turn/${encodeURIComponent(xirsysChannel)}`,
+          method: 'PUT',
+          headers: {
+            'Authorization': `Basic ${auth}`,
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(postData),
+          },
+          timeout: 5000,
+        },
+        (xRes) => {
+          let data = '';
+          xRes.on('data', (chunk) => (data += chunk));
+          xRes.on('end', () => {
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.s === 'ok' && parsed.v && parsed.v.iceServers) {
+                const xIce = parsed.v.iceServers;
+                const result = [
+                  {
+                    urls: xIce.urls,
+                    username: xIce.username,
+                    credential: xIce.credential,
+                  },
+                ];
+                cachedXirsys = {
+                  iceServers: result,
+                  expiresAt: Date.now() + 30 * 60 * 1000,
+                };
+                resolve(result);
+              } else {
+                reject(new Error(`Xirsys API response: ${data}`));
+              }
+            } catch (e) {
+              reject(e);
+            }
+          });
+        }
+      );
+      xReq.on('error', reject);
+      xReq.on('timeout', () => {
+        xReq.destroy();
+        reject(new Error('Xirsys timeout'));
+      });
+      xReq.write(postData);
+      xReq.end();
+    });
+  } catch (err) {
+    console.error('[FORGE Signaling] Xirsys fetch error:', err);
+    return cachedXirsys ? cachedXirsys.iceServers : null;
+  }
+}
 
 const topics = new Map();
 const clientTopics = new Map();
@@ -45,10 +117,22 @@ const DEFAULT_STUN_LIST = [
  * Generates dynamic time-limited TURN credentials if secret is configured,
  * or returns static TURN / STUN fallbacks.
  */
-function generateIceServers() {
+async function generateIceServers() {
   const iceServers = [{ urls: DEFAULT_STUN_LIST }];
 
-  // 1. Dynamic HMAC-SHA1 short-lived credentials (Coturn / RFC 5766)
+  // 1. Dynamic Xirsys API integration
+  if (xirsysIdent && xirsysSecret) {
+    const xirsysServers = await fetchXirsysIceServers();
+    if (xirsysServers && xirsysServers.length > 0) {
+      return {
+        iceServers: [{ urls: DEFAULT_STUN_LIST }, ...xirsysServers],
+        hasTurn: true,
+        type: 'xirsys-dynamic',
+      };
+    }
+  }
+
+  // 2. Dynamic HMAC-SHA1 short-lived credentials (Coturn / RFC 5766)
   if (turnSharedSecret && (turnRealm || turnUrlsRaw)) {
     const ttl = 86400; // 24 hours
     const expiry = Math.floor(Date.now() / 1000) + ttl;
@@ -83,7 +167,7 @@ function generateIceServers() {
     };
   }
 
-  // 2. Static TURN credentials from environment
+  // 3. Static TURN credentials from environment
   if (turnUrlsRaw && turnStaticUser && turnStaticCred) {
     const urls = turnUrlsRaw.split(',').map((u) => u.trim()).filter(Boolean);
     iceServers.push({
@@ -98,7 +182,7 @@ function generateIceServers() {
     };
   }
 
-  // 3. Fallback: STUN only
+  // 4. Fallback: STUN only
   return {
     iceServers,
     hasTurn: false,
@@ -131,7 +215,7 @@ const server = http.createServer((req, res) => {
         activeConnections: wss.clients.size,
         activeRooms: topics.size,
         rooms: Array.from(topics.keys()),
-        hasTurnConfigured: Boolean(turnSharedSecret || (turnUrlsRaw && turnStaticUser)),
+        hasTurnConfigured: Boolean(turnSharedSecret || (turnUrlsRaw && turnStaticUser) || (xirsysIdent && xirsysSecret)),
         lanIps: getLanIps(),
         timestamp: new Date().toISOString(),
       })
@@ -141,9 +225,21 @@ const server = http.createServer((req, res) => {
 
   // Ephemeral TURN credentials endpoint
   if (req.method === 'GET' && (url.pathname === '/api/turn-credentials' || url.pathname === '/turn-credentials')) {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    const result = generateIceServers();
-    res.end(JSON.stringify(result));
+    generateIceServers()
+      .then((result) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+      })
+      .catch((err) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            iceServers: [{ urls: DEFAULT_STUN_LIST }],
+            hasTurn: false,
+            warning: err.message,
+          })
+        );
+      });
     return;
   }
 

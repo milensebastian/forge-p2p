@@ -1,4 +1,5 @@
 import http from 'http';
+import https from 'https';
 import os from 'os';
 import crypto from 'crypto';
 import { WebSocketServer, WebSocket } from 'ws';
@@ -11,6 +12,9 @@ export interface SignalingServerOptions {
   turnUrlsRaw?: string;
   turnStaticUser?: string;
   turnStaticCred?: string;
+  xirsysIdent?: string;
+  xirsysSecret?: string;
+  xirsysChannel?: string;
 }
 
 export function getLanIps(): string[] {
@@ -43,13 +47,97 @@ export function startSignalingServer(options: SignalingServerOptions = {}) {
   const turnUrlsRaw = options.turnUrlsRaw || process.env.TURN_URLS || '';
   const turnStaticUser = options.turnStaticUser || process.env.TURN_USERNAME || '';
   const turnStaticCred = options.turnStaticCred || process.env.TURN_CREDENTIAL || process.env.TURN_PASSWORD || '';
+  const xirsysIdent = options.xirsysIdent || process.env.XIRSYS_IDENT || '';
+  const xirsysSecret = options.xirsysSecret || process.env.XIRSYS_SECRET || '';
+  const xirsysChannel = options.xirsysChannel || process.env.XIRSYS_CHANNEL || 'default';
+
+  let cachedXirsys: { iceServers: RTCIceServer[]; expiresAt: number } | null = null;
+
+  async function fetchXirsysIceServers(): Promise<RTCIceServer[] | null> {
+    if (!xirsysIdent || !xirsysSecret) return null;
+    if (cachedXirsys && Date.now() < cachedXirsys.expiresAt) {
+      return cachedXirsys.iceServers;
+    }
+
+    try {
+      const auth = Buffer.from(`${xirsysIdent}:${xirsysSecret}`).toString('base64');
+      const postData = JSON.stringify({ format: 'urls' });
+
+      return await new Promise<RTCIceServer[]>((resolve, reject) => {
+        const xReq = https.request(
+          {
+            hostname: 'global.xirsys.net',
+            path: `/_turn/${encodeURIComponent(xirsysChannel)}`,
+            method: 'PUT',
+            headers: {
+              'Authorization': `Basic ${auth}`,
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(postData),
+            },
+            timeout: 5000,
+          },
+          (xRes) => {
+            let data = '';
+            xRes.on('data', (chunk) => (data += chunk));
+            xRes.on('end', () => {
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.s === 'ok' && parsed.v && parsed.v.iceServers) {
+                  const xIce = parsed.v.iceServers;
+                  const result: RTCIceServer[] = [
+                    {
+                      urls: xIce.urls,
+                      username: xIce.username,
+                      credential: xIce.credential,
+                    },
+                  ];
+                  cachedXirsys = {
+                    iceServers: result,
+                    expiresAt: Date.now() + 30 * 60 * 1000, // cache for 30 minutes
+                  };
+                  resolve(result);
+                } else {
+                  reject(new Error(`Xirsys API response: ${data}`));
+                }
+              } catch (e) {
+                reject(e);
+              }
+            });
+          }
+        );
+        xReq.on('error', reject);
+        xReq.on('timeout', () => {
+          xReq.destroy();
+          reject(new Error('Xirsys request timed out'));
+        });
+        xReq.write(postData);
+        xReq.end();
+      });
+    } catch (err) {
+      console.error('[FORGE Signaling] Xirsys fetch error:', err);
+      return cachedXirsys ? cachedXirsys.iceServers : null;
+    }
+  }
 
   const topics = new Map<string, Set<WebSocket>>();
   const clientTopics = new Map<WebSocket, Set<string>>();
 
-  function generateIceServers() {
+  async function generateIceServers() {
     const iceServers: RTCIceServer[] = [{ urls: DEFAULT_STUN_LIST }];
 
+    // 1. Dynamic Xirsys API integration
+    if (xirsysIdent && xirsysSecret) {
+      const xirsysServers = await fetchXirsysIceServers();
+      if (xirsysServers && xirsysServers.length > 0) {
+        return {
+          iceServers: [{ urls: DEFAULT_STUN_LIST }, ...xirsysServers],
+          hasTurn: true,
+          type: 'xirsys-dynamic',
+        };
+      }
+    }
+
+    // 2. Dynamic HMAC-SHA1 short-lived credentials (Coturn / RFC 5766)
     if (turnSharedSecret && (turnRealm || turnUrlsRaw)) {
       const ttl = 86400;
       const expiry = Math.floor(Date.now() / 1000) + ttl;
@@ -84,6 +172,7 @@ export function startSignalingServer(options: SignalingServerOptions = {}) {
       };
     }
 
+    // 3. Static TURN credentials from environment
     if (turnUrlsRaw && turnStaticUser && turnStaticCred) {
       const urls = turnUrlsRaw.split(',').map((u) => u.trim()).filter(Boolean);
       iceServers.push({
@@ -128,7 +217,7 @@ export function startSignalingServer(options: SignalingServerOptions = {}) {
           activeConnections: wss.clients.size,
           activeRooms: topics.size,
           rooms: Array.from(topics.keys()),
-          hasTurnConfigured: Boolean(turnSharedSecret || (turnUrlsRaw && turnStaticUser)),
+          hasTurnConfigured: Boolean(turnSharedSecret || (turnUrlsRaw && turnStaticUser) || (xirsysIdent && xirsysSecret)),
           lanIps: getLanIps(),
           timestamp: new Date().toISOString(),
         })
@@ -137,9 +226,21 @@ export function startSignalingServer(options: SignalingServerOptions = {}) {
     }
 
     if (req.method === 'GET' && (parsedUrl.pathname === '/api/turn-credentials' || parsedUrl.pathname === '/turn-credentials')) {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      const result = generateIceServers();
-      res.end(JSON.stringify(result));
+      generateIceServers()
+        .then((result) => {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(result));
+        })
+        .catch((err) => {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(
+            JSON.stringify({
+              iceServers: [{ urls: DEFAULT_STUN_LIST }],
+              hasTurn: false,
+              warning: err.message,
+            })
+          );
+        });
       return;
     }
 
