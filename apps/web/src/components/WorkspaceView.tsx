@@ -18,6 +18,7 @@ import { NewDocModal } from './NewDocModal';
 import { ConnectModal } from './ConnectModal';
 import { QuickOpenModal } from './QuickOpenModal';
 import { ShortcutsModal } from './ShortcutsModal';
+import { loadKeybindings, matchesKeybinding } from '../services/keybindings';
 import {
   Code2,
   FileCode,
@@ -161,41 +162,51 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
     };
   }, [roomId, userName, userColor]);
 
-  // Global VS Code keyboard shortcuts listener
+  // Global customizable keyboard shortcuts listener
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const isMod = e.metaKey || e.ctrlKey;
+    let currentBindings = loadKeybindings();
 
-      // 1. Quick Open (Ctrl+P / Cmd+P)
-      if (isMod && e.key.toLowerCase() === 'p') {
+    const updateBindings = () => {
+      currentBindings = loadKeybindings();
+    };
+    window.addEventListener('forge-keybindings-updated', updateBindings);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check Quick Open
+      const quickOpenBinding = currentBindings.find((b) => b.id === 'quickOpen');
+      if (quickOpenBinding && matchesKeybinding(e, quickOpenBinding.combo)) {
         e.preventDefault();
         setIsQuickOpenOpen(true);
         return;
       }
 
-      // 2. Toggle Sidebar (Ctrl+B / Cmd+B)
-      if (isMod && e.key.toLowerCase() === 'b') {
+      // Check Toggle Sidebar
+      const toggleSidebarBinding = currentBindings.find((b) => b.id === 'toggleSidebar');
+      if (toggleSidebarBinding && matchesKeybinding(e, toggleSidebarBinding.combo)) {
         e.preventDefault();
         setIsSidebarOpen((prev) => !prev);
         return;
       }
 
-      // 3. Save (Ctrl+S / Cmd+S)
-      if (isMod && e.key.toLowerCase() === 's') {
+      // Check Save
+      const saveBinding = currentBindings.find((b) => b.id === 'save');
+      if (saveBinding && matchesKeybinding(e, saveBinding.combo)) {
         e.preventDefault();
         triggerSaveFeedback();
         return;
       }
 
-      // 4. New Document (Ctrl+Shift+N / Cmd+Shift+N)
-      if (isMod && e.shiftKey && e.key.toLowerCase() === 'n') {
+      // Check New File
+      const newFileBinding = currentBindings.find((b) => b.id === 'newFile');
+      if (newFileBinding && matchesKeybinding(e, newFileBinding.combo)) {
         e.preventDefault();
         setIsNewDocModalOpen(true);
         return;
       }
 
-      // 5. Shortcuts Reference (Ctrl+? / Cmd+? or F1)
-      if ((isMod && (e.key === '?' || (e.shiftKey && e.key === '/'))) || e.key === 'F1') {
+      // Check Open Shortcuts
+      const shortcutsBinding = currentBindings.find((b) => b.id === 'openShortcuts');
+      if ((shortcutsBinding && matchesKeybinding(e, shortcutsBinding.combo)) || e.key === 'F1') {
         e.preventDefault();
         setIsShortcutsOpen(true);
         return;
@@ -203,7 +214,10 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('forge-keybindings-updated', updateBindings);
+    };
   }, []);
 
   // Update awareness when active document changes

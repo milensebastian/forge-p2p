@@ -3,6 +3,7 @@ import Editor, { OnMount } from '@monaco-editor/react';
 import { CollabManager, MonacoBinding } from '@forge/collaboration';
 import { DocumentMeta, SupportedLanguage, SUPPORTED_LANGUAGES_LIST, getLanguageConfig } from '@forge/core';
 import { runProgram, ExecutionResult } from '../services/codeRunner';
+import { loadKeybindings, matchesKeybinding } from '../services/keybindings';
 import {
   Code2,
   Play,
@@ -95,51 +96,92 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
       collabManager.setLocalCursor(document.id, e.position.lineNumber, e.position.column);
     });
 
-    // --- VS CODE KEYBOARD SHORTCUTS ---
+    // Dynamic Customizable Keyboard Shortcuts Listener for Monaco
+    editor.onKeyDown((e: any) => {
+      const raw = e.browserEvent as KeyboardEvent;
+      if (!raw) return;
+      const bindings = loadKeybindings();
 
-    // 1. Run Program (Ctrl+Enter / Cmd+Enter)
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
-      handleRunCode();
-    });
+      // Run Program
+      const runBinding = bindings.find((b) => b.id === 'runProgram');
+      if (runBinding && matchesKeybinding(raw, runBinding.combo)) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleRunCode();
+        return;
+      }
 
-    // 2. Quick Open / Go to file (Ctrl+P / Cmd+P)
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyP, () => {
-      onOpenQuickOpen?.();
-    });
+      // Quick Open
+      const quickOpenBinding = bindings.find((b) => b.id === 'quickOpen');
+      if (quickOpenBinding && matchesKeybinding(raw, quickOpenBinding.combo)) {
+        e.preventDefault();
+        e.stopPropagation();
+        onOpenQuickOpen?.();
+        return;
+      }
 
-    // 3. Toggle Sidebar (Ctrl+B / Cmd+B)
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => {
-      onToggleSidebar?.();
-    });
+      // Toggle Sidebar
+      const toggleSidebarBinding = bindings.find((b) => b.id === 'toggleSidebar');
+      if (toggleSidebarBinding && matchesKeybinding(raw, toggleSidebarBinding.combo)) {
+        e.preventDefault();
+        e.stopPropagation();
+        onToggleSidebar?.();
+        return;
+      }
 
-    // 4. Save to IndexedDB & Mesh (Ctrl+S / Cmd+S)
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-      onSave?.();
-    });
+      // Save
+      const saveBinding = bindings.find((b) => b.id === 'save');
+      if (saveBinding && matchesKeybinding(raw, saveBinding.combo)) {
+        e.preventDefault();
+        e.stopPropagation();
+        onSave?.();
+        return;
+      }
 
-    // 5. Toggle Integrated Terminal / Output (Ctrl+` / Cmd+`)
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Backquote, () => {
-      setIsTerminalOpen((prev) => !prev);
-    });
+      // Toggle Terminal
+      const terminalBinding = bindings.find((b) => b.id === 'toggleTerminal');
+      if (terminalBinding && matchesKeybinding(raw, terminalBinding.combo)) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsTerminalOpen((prev) => !prev);
+        return;
+      }
 
-    // 6. Toggle Word Wrap (Alt+Z)
-    editor.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.KeyZ, () => {
-      setWordWrap((prev) => (prev === 'on' ? 'off' : 'on'));
-    });
+      // Toggle Word Wrap
+      const wordWrapBinding = bindings.find((b) => b.id === 'toggleWordWrap');
+      if (wordWrapBinding && matchesKeybinding(raw, wordWrapBinding.combo)) {
+        e.preventDefault();
+        e.stopPropagation();
+        setWordWrap((prev) => (prev === 'on' ? 'off' : 'on'));
+        return;
+      }
 
-    // 7. Delete Line (Ctrl+Shift+K / Cmd+Shift+K)
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyK, () => {
-      editor.getAction('editor.action.deleteLines')?.run();
-    });
+      // Delete Line
+      const deleteLineBinding = bindings.find((b) => b.id === 'deleteLine');
+      if (deleteLineBinding && matchesKeybinding(raw, deleteLineBinding.combo)) {
+        e.preventDefault();
+        e.stopPropagation();
+        editor.getAction('editor.action.deleteLines')?.run();
+        return;
+      }
 
-    // 8. Format Document (Shift+Alt+F)
-    editor.addCommand(monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF, () => {
-      editor.getAction('editor.action.formatDocument')?.run();
-    });
+      // Format Document
+      const formatBinding = bindings.find((b) => b.id === 'formatDocument');
+      if (formatBinding && matchesKeybinding(raw, formatBinding.combo)) {
+        e.preventDefault();
+        e.stopPropagation();
+        editor.getAction('editor.action.formatDocument')?.run();
+        return;
+      }
 
-    // 9. Keyboard Shortcuts Palette (Ctrl+? / Cmd+?)
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Slash, () => {
-      onOpenShortcuts?.();
+      // Keyboard Shortcuts Palette
+      const shortcutsBinding = bindings.find((b) => b.id === 'openShortcuts');
+      if (shortcutsBinding && matchesKeybinding(raw, shortcutsBinding.combo)) {
+        e.preventDefault();
+        e.stopPropagation();
+        onOpenShortcuts?.();
+        return;
+      }
     });
   };
 

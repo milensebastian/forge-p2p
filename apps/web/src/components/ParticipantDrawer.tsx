@@ -124,9 +124,8 @@ export const ParticipantDrawer: React.FC<ParticipantDrawerProps> = ({
               return (
                 <div
                   key={index}
-                  className={`h-1 rounded-full transition-all ${
-                    isFilled ? 'bg-zinc-300' : 'bg-zinc-800'
-                  }`}
+                  className={`h-1 rounded-full transition-all ${isFilled ? 'bg-zinc-300' : 'bg-zinc-800'
+                    }`}
                 />
               );
             })}
@@ -210,8 +209,8 @@ export const ParticipantDrawer: React.FC<ParticipantDrawerProps> = ({
                         {peer.candidateType === 'relay'
                           ? 'TURN Relay'
                           : peer.candidateType === 'host'
-                          ? 'Host LAN'
-                          : 'STUN srflx'}
+                            ? 'Host LAN'
+                            : 'STUN srflx'}
                       </span>
                     </div>
 
