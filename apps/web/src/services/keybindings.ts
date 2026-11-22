@@ -20,9 +20,15 @@ const STORAGE_KEY = 'forge_custom_keybindings';
 export const DEFAULT_KEYBINDINGS: Omit<KeybindingDef, 'combo' | 'isCustom'>[] = [
   {
     id: 'runProgram',
-    label: 'Run current program',
+    label: 'Run current program (Compile & Execute)',
     category: 'Execution',
     defaultCombo: { key: 'enter', ctrl: true, meta: true },
+  },
+  {
+    id: 'compileProgram',
+    label: 'Build / Compile current program (Syntax & flags check)',
+    category: 'Execution',
+    defaultCombo: { key: 'b', ctrl: true, meta: true, shift: true },
   },
   {
     id: 'quickOpen',

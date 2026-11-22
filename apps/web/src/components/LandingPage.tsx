@@ -294,10 +294,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onJoinRoom }) => {
           <div className="space-y-1">
             <div className="font-medium text-zinc-300 flex items-center gap-1.5">
               <FileCode className="w-3.5 h-3.5 text-zinc-400" />
-              <span>Multi-Language Runner</span>
+              <span>Multi-Language Compiler & Runner</span>
             </div>
             <p className="text-zinc-500 text-[11px] leading-relaxed">
-              Execute Python, C, C++, Rust, Go, Java, TS, JS, Bash, and 15+ languages.
+              Compile & execute C, C++, Rust, Go, Java, TS, Python, and 15+ languages with live diagnostics.
             </p>
           </div>
         </div>

@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useMemo } from 'react';
 import Editor, { OnMount } from '@monaco-editor/react';
 import { CollabManager, MonacoBinding } from '@forge/collaboration';
 import { DocumentMeta, SupportedLanguage, SUPPORTED_LANGUAGES_LIST, getLanguageConfig } from '@forge/core';
-import { runProgram, ExecutionResult } from '../services/codeRunner';
+import { runProgram, compileProgram, ExecutionResult, CompilerDiagnostic } from '../services/codeRunner';
 import { loadKeybindings, matchesKeybinding } from '../services/keybindings';
 import {
   Code2,
@@ -21,6 +21,11 @@ import {
   Cpu,
   Globe,
   Keyboard,
+  Hammer,
+  Sliders,
+  Check,
+  AlertTriangle,
+  ExternalLink,
 } from 'lucide-react';
 
 type MonacoEditor = Parameters<OnMount>[0];
@@ -53,15 +58,79 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
   const [showMinimap, setShowMinimap] = useState(!isSmallScreen);
   const [wordWrap, setWordWrap] = useState<'on' | 'off'>(isSmallScreen ? 'on' : 'off');
 
-  // Execution Terminal States
+  const langConfig = useMemo(() => getLanguageConfig(document.language), [document.language]);
+
+  // Compiler Flags state
+  const [compilerFlags, setCompilerFlags] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(`forge_flags_${document.language}`);
+      if (saved !== null) return saved;
+    }
+    return langConfig.defaultCompilerFlags || '';
+  });
+
+  // Keep flags updated when switching languages
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(`forge_flags_${document.language}`);
+      if (saved !== null) {
+        setCompilerFlags(saved);
+        return;
+      }
+    }
+    setCompilerFlags(langConfig.defaultCompilerFlags || '');
+  }, [document.language, langConfig.defaultCompilerFlags]);
+
+  const handleUpdateCompilerFlags = (flags: string) => {
+    setCompilerFlags(flags);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`forge_flags_${document.language}`, flags);
+    }
+  };
+
+  // Execution & Compiler Terminal States
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
-  const [terminalTab, setTerminalTab] = useState<'output' | 'stdin' | 'preview'>('output');
+  const [terminalTab, setTerminalTab] = useState<'output' | 'compiler' | 'stdin' | 'flags' | 'preview'>('output');
   const [isRunning, setIsRunning] = useState(false);
+  const [isBuilding, setIsBuilding] = useState(false);
   const [stdinInput, setStdinInput] = useState('');
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const [isTerminalMaximized, setIsTerminalMaximized] = useState(false);
+  const [isFlagsModalOpen, setIsFlagsModalOpen] = useState(false);
 
-  const langConfig = useMemo(() => getLanguageConfig(document.language), [document.language]);
+  // Sync Compiler Diagnostics to Monaco Editor Markers (Red / Yellow squigglies)
+  useEffect(() => {
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+    if (!editor || !monaco) return;
+    const model = editor.getModel();
+    if (!model) return;
+
+    if (executionResult?.diagnostics && executionResult.diagnostics.length > 0) {
+      const markers = executionResult.diagnostics.map((d) => ({
+        startLineNumber: Math.max(1, d.line),
+        startColumn: Math.max(1, d.column || 1),
+        endLineNumber: Math.max(1, d.line),
+        endColumn: Math.max(1, (d.column || 1) + 60),
+        message: d.message,
+        severity: d.severity === 'error'
+          ? monaco.MarkerSeverity.Error
+          : monaco.MarkerSeverity.Warning,
+      }));
+      monaco.editor.setModelMarkers(model, 'compiler', markers);
+    } else if (executionResult?.status === 'success') {
+      monaco.editor.setModelMarkers(model, 'compiler', []);
+    }
+  }, [executionResult]);
+
+  // Jump to specific line from compiler error click
+  const handleJumpToLine = (lineNumber: number, column = 1) => {
+    if (editorRef.current) {
+      editorRef.current.revealLineInCenter(lineNumber);
+      editorRef.current.setPosition({ lineNumber, column });
+      editorRef.current.focus();
+    }
+  };
 
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
@@ -102,12 +171,21 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
       if (!raw) return;
       const bindings = loadKeybindings();
 
-      // Run Program
+      // Compile & Run Program
       const runBinding = bindings.find((b) => b.id === 'runProgram');
       if (runBinding && matchesKeybinding(raw, runBinding.combo)) {
         e.preventDefault();
         e.stopPropagation();
         handleRunCode();
+        return;
+      }
+
+      // Compile / Build Only (Ctrl+Shift+B)
+      const compileBinding = bindings.find((b) => b.id === 'compileProgram');
+      if (compileBinding && matchesKeybinding(raw, compileBinding.combo)) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleCompileOnly();
         return;
       }
 
@@ -223,7 +301,7 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
     };
   }, [document.id, document.language, langConfig.monacoLang]);
 
-  // Execute current program
+  // Execute current program (Compile & Run)
   const handleRunCode = async () => {
     const ytext = collabManager.getText(document.id);
     const code = ytext.toString();
@@ -241,8 +319,15 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
     setExecutionResult(null);
 
     try {
-      const result = await runProgram(code, document.language, stdinInput);
+      const result = await runProgram(code, document.language, {
+        stdin: stdinInput,
+        compilerFlags,
+        compileOnly: false,
+      });
       setExecutionResult(result);
+      if (result.compileOutput && (result.compileStatus === 'error' || result.diagnostics?.length)) {
+        setTerminalTab('compiler');
+      }
     } catch (err: any) {
       setExecutionResult({
         stdout: '',
@@ -253,6 +338,35 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
       });
     } finally {
       setIsRunning(false);
+    }
+  };
+
+  // Compile / Build current program without executing
+  const handleCompileOnly = async () => {
+    const ytext = collabManager.getText(document.id);
+    const code = ytext.toString();
+
+    setIsTerminalOpen(true);
+    setTerminalTab('compiler');
+    setIsBuilding(true);
+    setExecutionResult(null);
+
+    try {
+      const result = await compileProgram(code, document.language, compilerFlags);
+      setExecutionResult(result);
+    } catch (err: any) {
+      setExecutionResult({
+        stdout: '',
+        stderr: err?.message || 'Compilation build error occurred.',
+        compileOutput: err?.message || 'Compilation failed.',
+        compileStatus: 'error',
+        exitCode: 1,
+        status: 'error',
+        runnerName: 'Compiler',
+        isCompileOnly: true,
+      });
+    } finally {
+      setIsBuilding(false);
     }
   };
 
@@ -283,25 +397,62 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
       <div className="h-9 px-3 border-b border-[#1e2029] flex items-center justify-between shrink-0 gap-2 bg-[#0e0f13]">
         <div className="flex items-center gap-2 shrink-0">
           <Code2 className="w-4 h-4 text-zinc-400 shrink-0" />
-          <span className="text-xs font-mono text-zinc-200 truncate max-w-[140px] sm:max-w-none">
+          <span className="text-xs font-mono text-zinc-200 truncate max-w-[130px] sm:max-w-none">
             {document.name}
           </span>
           <span className="text-[10px] font-mono text-zinc-400 uppercase px-1.5 py-0.5 rounded bg-[#14151b] border border-[#23252f] hidden sm:inline">
             {langConfig.label}
           </span>
+
+          {/* Active Compiler Indicator Badge */}
+          {langConfig.compilerName && (
+            <button
+              onClick={() => {
+                setIsTerminalOpen(true);
+                setTerminalTab('flags');
+              }}
+              className="hidden lg:flex items-center gap-1 text-[10px] font-mono text-indigo-300 hover:text-white px-1.5 py-0.5 rounded bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 transition-colors"
+              title={`Compiler: ${langConfig.compilerName}. Click to configure compiler flags.`}
+            >
+              <Hammer className="w-2.5 h-2.5" />
+              <span>{langConfig.compilerName.split(' ')[0]} {langConfig.compilerVersion || ''}</span>
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Run Button */}
+          {/* Build / Compile Only Button */}
+          {langConfig.isCompiled && (
+            <button
+              onClick={handleCompileOnly}
+              disabled={isBuilding || isRunning}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all shadow-xs ${
+                isBuilding
+                  ? 'bg-[#181922] text-zinc-500 cursor-not-allowed border border-[#23252f]'
+                  : 'bg-[#181922] hover:bg-[#202230] text-zinc-200 hover:text-white border border-[#282a38] active:scale-[0.98]'
+              }`}
+              title="Compile / Build file (Ctrl + Shift + B)"
+            >
+              {isBuilding ? (
+                <RotateCcw className="w-3.5 h-3.5 animate-spin text-indigo-400" />
+              ) : (
+                <Hammer className="w-3.5 h-3.5 text-indigo-400" />
+              )}
+              <span className="hidden sm:inline">{isBuilding ? 'Building...' : 'Build'}</span>
+              <span className="hidden xl:inline text-[9px] opacity-70 font-mono">⇧⌘B</span>
+            </button>
+          )}
+
+          {/* Run Button (Compile & Run) */}
           <button
             onClick={handleRunCode}
-            disabled={isRunning}
+            disabled={isRunning || isBuilding}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all shadow-xs ${
               isRunning
                 ? 'bg-[#181922] text-zinc-500 cursor-not-allowed border border-[#23252f]'
                 : 'bg-indigo-600 hover:bg-indigo-500 text-white font-medium border border-indigo-500 active:scale-[0.98]'
             }`}
-            title="Run code (Ctrl + Enter)"
+            title="Compile & Run program (Ctrl + Enter)"
           >
             {isRunning ? (
               <RotateCcw className="w-3.5 h-3.5 animate-spin" />
@@ -312,7 +463,7 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
             <span className="hidden lg:inline text-[10px] opacity-75 font-mono">⌘↵</span>
           </button>
 
-          {/* Toggle Terminal drawer */}
+          {/* Toggle Terminal / Compiler drawer */}
           <button
             onClick={() => setIsTerminalOpen(!isTerminalOpen)}
             className={`px-2 py-1 rounded-md text-xs transition-colors flex items-center gap-1 border ${
@@ -320,10 +471,29 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
                 ? 'bg-[#181922] text-white border-[#2b2d3a]'
                 : 'bg-[#121318] text-zinc-400 border-[#1e2029] hover:text-zinc-200 hover:bg-[#181922]'
             }`}
-            title="Toggle Console / Output (Ctrl+`)"
+            title="Toggle Console & Compiler Output (Ctrl+`)"
           >
             <Terminal className="w-3.5 h-3.5 text-indigo-400" />
             <span className="hidden sm:inline text-[11px]">Console</span>
+            {executionResult?.diagnostics && executionResult.diagnostics.length > 0 && (
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+            )}
+          </button>
+
+          {/* Compiler Flags Quick Trigger */}
+          <button
+            onClick={() => {
+              setIsTerminalOpen(true);
+              setTerminalTab('flags');
+            }}
+            className={`p-1 rounded-md text-xs transition-colors flex items-center border ${
+              terminalTab === 'flags' && isTerminalOpen
+                ? 'bg-[#181922] text-indigo-300 border-indigo-500/40'
+                : 'text-zinc-400 border-transparent hover:text-white hover:bg-[#181922]'
+            }`}
+            title="Configure Compiler Flags & Standards"
+          >
+            <Sliders className="w-3.5 h-3.5" />
           </button>
 
           {/* Quick Shortcuts Helper Button */}
@@ -407,7 +577,7 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
         />
       </div>
 
-      {/* Execution Terminal / Output Panel */}
+      {/* Execution & Compiler Terminal Drawer */}
       {isTerminalOpen && (
         <div
           className={`border-t border-[#1e2029] bg-[#0c0d10] flex flex-col shrink-0 z-20 shadow-2xl transition-all duration-150 ${
@@ -417,6 +587,7 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
           {/* Terminal Tabs & Toolbar */}
           <div className="h-8 px-3 border-b border-[#1e2029] bg-[#0e0f13] flex items-center justify-between shrink-0 select-none">
             <div className="flex items-center gap-1">
+              {/* Output Tab */}
               <button
                 onClick={() => setTerminalTab('output')}
                 className={`px-2 py-0.5 text-xs font-medium rounded transition-colors flex items-center gap-1.5 ${
@@ -426,8 +597,8 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
                 }`}
               >
                 <Terminal className="w-3 h-3 text-indigo-400" />
-                <span>Console Output</span>
-                {executionResult && (
+                <span>Program Output</span>
+                {executionResult && !executionResult.isCompileOnly && (
                   <span
                     className={`w-1.5 h-1.5 rounded-full ${
                       executionResult.status === 'success' ? 'bg-emerald-400' : 'bg-rose-400'
@@ -436,6 +607,27 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
                 )}
               </button>
 
+              {/* Compiler Tab */}
+              <button
+                onClick={() => setTerminalTab('compiler')}
+                className={`px-2 py-0.5 text-xs font-medium rounded transition-colors flex items-center gap-1.5 ${
+                  terminalTab === 'compiler'
+                    ? 'bg-[#181922] text-white border border-[#2b2d3a]'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <Hammer className="w-3 h-3 text-indigo-400" />
+                <span>Compiler & Diagnostics</span>
+                {executionResult?.compileStatus && (
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      executionResult.compileStatus === 'success' ? 'bg-emerald-400' : 'bg-rose-400'
+                    }`}
+                  />
+                )}
+              </button>
+
+              {/* Stdin Tab */}
               <button
                 onClick={() => setTerminalTab('stdin')}
                 className={`px-2 py-0.5 text-xs font-medium rounded transition-colors flex items-center gap-1.5 ${
@@ -450,6 +642,25 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
                 )}
               </button>
 
+              {/* Compiler Flags Tab */}
+              <button
+                onClick={() => setTerminalTab('flags')}
+                className={`px-2 py-0.5 text-xs font-medium rounded transition-colors flex items-center gap-1.5 ${
+                  terminalTab === 'flags'
+                    ? 'bg-[#181922] text-white border border-[#2b2d3a]'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <Sliders className="w-3 h-3 text-indigo-400" />
+                <span>Compiler Flags</span>
+                {compilerFlags && (
+                  <span className="text-[10px] text-zinc-500 font-mono hidden md:inline truncate max-w-[80px]">
+                    ({compilerFlags})
+                  </span>
+                )}
+              </button>
+
+              {/* Web Preview Tab */}
               {(langConfig.id === 'html' || langConfig.id === 'css' || langConfig.id === 'javascript') && (
                 <button
                   onClick={() => setTerminalTab('preview')}
@@ -467,11 +678,11 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
 
             {/* Right Action Buttons */}
             <div className="flex items-center gap-1">
-              {terminalTab === 'output' && executionResult && (
+              {executionResult && (
                 <button
                   onClick={() => setExecutionResult(null)}
                   className="p-1 rounded text-zinc-500 hover:text-zinc-300 transition-colors"
-                  title="Clear output"
+                  title="Clear console"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -501,12 +712,13 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
 
           {/* Terminal Content Body */}
           <div className="flex-1 overflow-auto p-3 font-mono text-xs leading-relaxed bg-[#0c0d10] select-text">
+            {/* 1. Program Output Tab */}
             {terminalTab === 'output' && (
               <>
                 {isRunning ? (
                   <div className="flex items-center gap-2 text-zinc-400 py-4 px-2">
                     <RotateCcw className="w-4 h-4 text-indigo-400 animate-spin" />
-                    <span>Executing {langConfig.label} program...</span>
+                    <span>Compiling & executing {langConfig.label} program...</span>
                   </div>
                 ) : executionResult ? (
                   <div className="space-y-3">
@@ -544,13 +756,6 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
                       </div>
                     </div>
 
-                    {/* Compiler Error / Message */}
-                    {executionResult.compileOutput && (
-                      <div className="p-2.5 rounded bg-amber-950/20 border border-amber-900/40 text-amber-300 whitespace-pre-wrap">
-                        {executionResult.compileOutput}
-                      </div>
-                    )}
-
                     {/* Standard Error */}
                     {executionResult.stderr && (
                       <div className="p-2.5 rounded bg-rose-950/20 border border-rose-900/40 text-rose-300 whitespace-pre-wrap">
@@ -560,30 +765,116 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
 
                     {/* Standard Output */}
                     {executionResult.stdout ? (
-                      <div className="text-zinc-200 whitespace-pre-wrap">
+                      <div className="text-zinc-200 whitespace-pre-wrap font-mono">
                         {executionResult.stdout}
                       </div>
                     ) : (
                       !executionResult.stderr && (
                         <div className="text-zinc-500 italic">
-                          (Program completed with no output)
+                          (Program completed with no output to stdout)
                         </div>
                       )
                     )}
                   </div>
                 ) : (
                   <div className="text-zinc-500 py-4 px-2 space-y-1">
-                    <div>Click <span className="text-indigo-400 font-medium">Run ▶</span> or press <kbd className="px-1.5 py-0.5 rounded bg-[#14151b] border border-[#23252f] text-zinc-300">Ctrl+Enter</kbd> to execute this {langConfig.label} file.</div>
-                    <div className="text-[11px] text-zinc-600">Supports Python, C, C++, Rust, Go, Java, C#, JS, TS, Bash, PHP, Ruby, R, Swift, Kotlin, SQL.</div>
+                    <div>Click <span className="text-indigo-400 font-medium">Run ▶</span> or press <kbd className="px-1.5 py-0.5 rounded bg-[#14151b] border border-[#23252f] text-zinc-300">Ctrl+Enter</kbd> to compile & execute.</div>
+                    <div className="text-[11px] text-zinc-600">Active compiler: {langConfig.compilerName || langConfig.label}</div>
                   </div>
                 )}
               </>
             )}
 
+            {/* 2. Compiler & Diagnostics Tab */}
+            {terminalTab === 'compiler' && (
+              <div className="space-y-3">
+                {isBuilding ? (
+                  <div className="flex items-center gap-2 text-zinc-400 py-4 px-2">
+                    <RotateCcw className="w-4 h-4 text-indigo-400 animate-spin" />
+                    <span>Running compiler build ({langConfig.compilerName || langConfig.label})...</span>
+                  </div>
+                ) : executionResult ? (
+                  <div className="space-y-3">
+                    {/* Compiler Summary Bar */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 p-2 rounded bg-[#14151b] border border-[#23252f] text-[11px]">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-zinc-200">
+                          {executionResult.compilerName || langConfig.compilerName || langConfig.label}
+                        </span>
+                        <span className="text-zinc-600">·</span>
+                        {executionResult.compileStatus === 'error' ? (
+                          <span className="flex items-center gap-1 text-rose-400 font-medium">
+                            <AlertCircle className="w-3 h-3" />
+                            Compilation Failed
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-emerald-400 font-medium">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Build Passed
+                          </span>
+                        )}
+                      </div>
+
+                      {compilerFlags && (
+                        <div className="text-zinc-400 font-mono text-[10px]">
+                          Flags: <span className="text-zinc-300">{compilerFlags}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Interactive Clickable Diagnostics */}
+                    {executionResult.diagnostics && executionResult.diagnostics.length > 0 && (
+                      <div className="space-y-1">
+                        <div className="text-[10px] uppercase font-semibold text-zinc-500 tracking-wider">
+                          Parsed Diagnostics ({executionResult.diagnostics.length}) - Click to jump
+                        </div>
+                        {executionResult.diagnostics.map((diag, dIdx) => (
+                          <button
+                            key={dIdx}
+                            onClick={() => handleJumpToLine(diag.line, diag.column)}
+                            className={`w-full text-left p-2 rounded border text-xs font-mono transition-colors flex items-start gap-2 ${
+                              diag.severity === 'error'
+                                ? 'bg-rose-950/20 hover:bg-rose-950/30 border-rose-900/50 text-rose-200'
+                                : 'bg-amber-950/20 hover:bg-amber-950/30 border-amber-900/50 text-amber-200'
+                            }`}
+                          >
+                            <span className="px-1.5 py-0.2 rounded text-[10px] uppercase font-semibold bg-[#0c0d10] border border-[#23252f] shrink-0">
+                              Line {diag.line}{diag.column ? `:${diag.column}` : ''}
+                            </span>
+                            <span className="flex-1 truncate">{diag.message}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Raw Compiler Output */}
+                    {executionResult.compileOutput ? (
+                      <div className="p-3 rounded bg-[#0c0d10] border border-[#1e2029] space-y-1">
+                        <div className="text-[10px] text-zinc-500 uppercase tracking-wider">Raw Compiler Log</div>
+                        <pre className="text-zinc-300 whitespace-pre-wrap font-mono text-[11px] leading-relaxed">
+                          {executionResult.compileOutput}
+                        </pre>
+                      </div>
+                    ) : (
+                      <div className="text-zinc-500 italic py-2">
+                        Compiler finished with zero warnings or errors. Binary ready for execution.
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-zinc-500 py-4 px-2 space-y-1">
+                    <div>Click <span className="text-indigo-400 font-medium">Build (Ctrl+Shift+B)</span> to run the compiler for syntax checks and diagnostics.</div>
+                    <div className="text-[11px] text-zinc-600">Supports GCC, Clang, rustc, tsc, javac, Go build, and C# compilers.</div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 3. Stdin Tab */}
             {terminalTab === 'stdin' && (
               <div className="h-full flex flex-col space-y-2">
                 <div className="text-zinc-400 text-[11px]">
-                  Provide standard input (stdin) passed to your program when reading from keyboard/terminal.
+                  Provide standard input (stdin) passed to your compiled program when reading from keyboard/terminal.
                 </div>
                 <textarea
                   value={stdinInput}
@@ -594,6 +885,83 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
               </div>
             )}
 
+            {/* 4. Compiler Flags & Standards Tab */}
+            {terminalTab === 'flags' && (
+              <div className="h-full flex flex-col space-y-4 max-w-xl">
+                <div>
+                  <div className="text-zinc-200 font-semibold text-xs mb-1">
+                    Compiler Configuration for {langConfig.label}
+                  </div>
+                  <div className="text-zinc-500 text-[11px]">
+                    Toolchain: <span className="text-zinc-300 font-mono">{langConfig.compilerName || 'Standard Interpreter'}</span>
+                  </div>
+                </div>
+
+                {/* Preset Flags */}
+                {langConfig.compilerPresets && langConfig.compilerPresets.length > 0 && (
+                  <div>
+                    <label className="block text-zinc-400 text-[11px] font-medium mb-1.5">
+                      Recommended Optimization & Standard Presets
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {langConfig.compilerPresets.map((preset, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => handleUpdateCompilerFlags(preset.flags)}
+                          className={`p-2 rounded-md border text-left text-xs transition-colors ${
+                            compilerFlags === preset.flags
+                              ? 'bg-[#181922] border-indigo-500 text-white'
+                              : 'bg-[#121318] border-[#1e2029] text-zinc-400 hover:text-zinc-200 hover:bg-[#181922]'
+                          }`}
+                        >
+                          <div className="font-medium text-zinc-200">{preset.label}</div>
+                          <div className="text-[10px] font-mono text-zinc-500 truncate">{preset.flags || '(default)'}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Custom Flags Input */}
+                <div>
+                  <label className="block text-zinc-400 text-[11px] font-medium mb-1.5">
+                    Custom Compiler Flags / CLI Arguments
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={compilerFlags}
+                      onChange={(e) => handleUpdateCompilerFlags(e.target.value)}
+                      placeholder="e.g. -std=c++20 -O2 -Wall -Wextra"
+                      className="flex-1 px-3 py-1.5 bg-[#121318] border border-[#1e2029] rounded text-xs font-mono text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-indigo-500/80"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateCompilerFlags(langConfig.defaultCompilerFlags || '')}
+                      className="px-2.5 py-1.5 rounded bg-[#181922] hover:bg-[#222432] border border-[#23252f] text-zinc-300 text-xs transition-colors shrink-0"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                  <div className="text-[10px] text-zinc-500 mt-1">
+                    Flags are passed directly to the compiler when building or executing this file.
+                  </div>
+                </div>
+
+                <div className="pt-2 flex items-center gap-2">
+                  <button
+                    onClick={handleCompileOnly}
+                    className="px-3 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors flex items-center gap-1.5"
+                  >
+                    <Hammer className="w-3.5 h-3.5" />
+                    <span>Test Build with Flags</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 5. Web Preview Tab */}
             {terminalTab === 'preview' && (
               <div className="h-full w-full rounded bg-white overflow-hidden">
                 <iframe
