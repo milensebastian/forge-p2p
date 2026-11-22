@@ -294,10 +294,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onJoinRoom }) => {
           <div className="space-y-1">
             <div className="font-medium text-zinc-300 flex items-center gap-1.5">
               <FileCode className="w-3.5 h-3.5 text-zinc-400" />
-              <span>Monaco & Markdown</span>
+              <span>Multi-Language Runner</span>
             </div>
             <p className="text-zinc-500 text-[11px] leading-relaxed">
-              VS Code editor engine with multi-language syntax and live split preview.
+              Run Python, C, C++, Rust, Go, Java, C#, JS, TS, Bash, PHP with live console output.
             </p>
           </div>
         </div>

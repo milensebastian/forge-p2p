@@ -51,17 +51,16 @@ Welcome to **FORGE**, a privacy-focused collaborative engineering workspace desi
 - **Local-First Durability**: Changes are automatically committed to client-side \`IndexedDB\`. Workspaces reload instantaneously offline.
 - **Conflict-Free State**: Powered by Yjs CRDTs (Conflict-free Replicated Data Types) ensuring mathematical convergence without locks.
 - **Up to 5 Full-Mesh Peers**: Direct peer-to-peer data channels maintain real-time low latency with no intermediary server overhead.
+- **Multi-Language Execution**: Execute Python, C, C++, Rust, Go, Java, C#, JS, TS, Bash, PHP, Ruby, SQL right from the browser.
 
 ---
 
 ## 🛠️ Getting Started
 
-1. **Share this Room**: Click the room badge in the top navigation to copy your workspace link.
-2. **Collaborative Code**: Open \`architecture.ts\` in the left explorer to edit TypeScript code with live Monaco cursors.
+1. **Share this Room**: Click **Share** in the top navigation to copy your workspace link or scan the QR code.
+2. **Run Code**: Open \`architecture.ts\` or create a new \`.py\` / \`.cpp\` file and click **Run ▶** (or press \`Ctrl+Enter\`).
 3. **Markdown Documentation**: Format specifications, architecture decision records (ADRs), and sprint roadmaps right here.
 4. **Peer Awareness**: Check the mesh indicator on the top right to inspect connected engineering peers.
-
-> **Security Notice**: Room IDs act as rendezvous identifiers. Do not share room links across untrusted public forums.
 `;
 
 export const INITIAL_CODE_CONTENT = `/**
@@ -82,10 +81,6 @@ export interface MeshTopology {
   isMeshSaturated: boolean;
 }
 
-/**
- * Calculates total active full-mesh WebRTC data channels:
- * N * (N - 1) / 2
- */
 export function calculateMeshChannels(peerCount: number): number {
   if (peerCount <= 1) return 0;
   return (peerCount * (peerCount - 1)) / 2;
@@ -101,6 +96,11 @@ export function initializeForgeWorkspace(roomName: string): MeshTopology {
     isMeshSaturated: false,
   };
 }
+
+// Click the "Run ▶" button above (or press Ctrl+Enter) to execute this program:
+const session = initializeForgeWorkspace('forge-demo');
+console.log('Channels required for 5 mesh peers:', calculateMeshChannels(5));
+console.log('Workspace topology initialized with capacity:', session.maxCapacity);
 `;
 
 export const DEFAULT_DOCUMENTS: DocumentMeta[] = [
@@ -121,4 +121,3 @@ export const DEFAULT_DOCUMENTS: DocumentMeta[] = [
     updatedAt: 1700000001000,
   },
 ];
-

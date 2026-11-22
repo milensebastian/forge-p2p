@@ -6,6 +6,7 @@ import {
   Participant,
   MeshStatus,
   formatRoomUrl,
+  getLanguageConfig,
 } from '@forge/core';
 import { CollabManager } from '@forge/collaboration';
 import { Avatar, Button, Tooltip } from '@forge/ui';
@@ -204,7 +205,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
     const initialText =
       type === 'markdown'
         ? `# ${name}\n\nStart writing documentation here...`
-        : `// ${name}\n// Created in FORGE workspace\n\n`;
+        : getLanguageConfig(language).boilerplate;
     const newDoc = collabManager.addFile(name, type, language, initialText);
     setActiveDocId(newDoc.id);
     if (typeof window !== 'undefined' && window.innerWidth < 768) {

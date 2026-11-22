@@ -1,16 +1,8 @@
-export type DocumentType = 'markdown' | 'code';
+import { SupportedLanguage } from './languages';
 
-export type SupportedLanguage =
-  | 'typescript'
-  | 'javascript'
-  | 'python'
-  | 'html'
-  | 'css'
-  | 'json'
-  | 'rust'
-  | 'go'
-  | 'sql'
-  | 'markdown';
+export * from './languages';
+
+export type DocumentType = 'markdown' | 'code';
 
 export interface DocumentMeta {
   id: string;
