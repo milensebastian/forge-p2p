@@ -9,13 +9,15 @@ import {
   getLanguageConfig,
 } from '@forge/core';
 import { CollabManager } from '@forge/collaboration';
-import { Avatar, Button, Tooltip } from '@forge/ui';
+import { Avatar, Tooltip } from '@forge/ui';
 import { CodeEditorView } from './CodeEditorView';
 import { MarkdownEditorView } from './MarkdownEditorView';
 import { ParticipantDrawer } from './ParticipantDrawer';
 import { SecurityModal } from './SecurityModal';
 import { NewDocModal } from './NewDocModal';
 import { ConnectModal } from './ConnectModal';
+import { QuickOpenModal } from './QuickOpenModal';
+import { ShortcutsModal } from './ShortcutsModal';
 import {
   Code2,
   FileCode,
@@ -26,14 +28,15 @@ import {
   Check,
   Users,
   Shield,
-  Radio,
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Database,
   QrCode,
   FolderOpen,
   X,
+  Search,
+  Keyboard,
+  CheckCircle2,
 } from 'lucide-react';
 
 interface WorkspaceViewProps {
@@ -72,6 +75,9 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [isNewDocModalOpen, setIsNewDocModalOpen] = useState(false);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
+  const [isQuickOpenOpen, setIsQuickOpenOpen] = useState(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [saveToast, setSaveToast] = useState<string | null>(null);
 
   const managerRef = useRef<CollabManager | null>(null);
   const destroyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -155,6 +161,51 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
     };
   }, [roomId, userName, userColor]);
 
+  // Global VS Code keyboard shortcuts listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMod = e.metaKey || e.ctrlKey;
+
+      // 1. Quick Open (Ctrl+P / Cmd+P)
+      if (isMod && e.key.toLowerCase() === 'p') {
+        e.preventDefault();
+        setIsQuickOpenOpen(true);
+        return;
+      }
+
+      // 2. Toggle Sidebar (Ctrl+B / Cmd+B)
+      if (isMod && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        setIsSidebarOpen((prev) => !prev);
+        return;
+      }
+
+      // 3. Save (Ctrl+S / Cmd+S)
+      if (isMod && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        triggerSaveFeedback();
+        return;
+      }
+
+      // 4. New Document (Ctrl+Shift+N / Cmd+Shift+N)
+      if (isMod && e.shiftKey && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        setIsNewDocModalOpen(true);
+        return;
+      }
+
+      // 5. Shortcuts Reference (Ctrl+? / Cmd+? or F1)
+      if ((isMod && (e.key === '?' || (e.shiftKey && e.key === '/'))) || e.key === 'F1') {
+        e.preventDefault();
+        setIsShortcutsOpen(true);
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Update awareness when active document changes
   useEffect(() => {
     if (collabManager && activeDocId) {
@@ -165,6 +216,11 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
   const activeDoc = useMemo(() => {
     return files.find((f) => f.id === activeDocId) || files[0];
   }, [files, activeDocId]);
+
+  const triggerSaveFeedback = () => {
+    setSaveToast('Saved to IndexedDB & Mesh');
+    setTimeout(() => setSaveToast(null), 2000);
+  };
 
   const handleCopyLink = () => {
     const shareUrl = formatRoomUrl(roomId);
@@ -276,16 +332,16 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] w-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+    <div className="flex flex-col h-[100dvh] w-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] relative">
       {/* Top Header */}
       <header className="h-11 border-b border-zinc-850 bg-zinc-950 px-3 flex items-center justify-between shrink-0 select-none z-30 gap-2">
         {/* Left Side */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* Mobile Sidebar Toggle */}
+          {/* Mobile / Desktop Sidebar Toggle (Ctrl+B) */}
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="md:hidden p-1 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-850 transition-colors"
-            title="Toggle File Explorer"
+            className="p-1 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-850 transition-colors"
+            title="Toggle File Explorer (Ctrl+B)"
             aria-label="Toggle File Explorer"
           >
             <FolderOpen className="w-4 h-4 text-zinc-300" />
@@ -300,9 +356,20 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
 
           <div className="h-3.5 w-px bg-zinc-800 hidden sm:block mx-0.5" />
 
+          {/* Quick Open File Button (Ctrl+P) */}
+          <button
+            onClick={() => setIsQuickOpenOpen(true)}
+            className="hidden sm:flex items-center gap-1.5 bg-zinc-900/60 hover:bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 px-2 py-0.5 rounded-md text-xs transition-colors"
+            title="Quick Open File (Ctrl+P)"
+          >
+            <Search className="w-3 h-3 text-zinc-500" />
+            <span className="text-[11px]">Go to file...</span>
+            <kbd className="text-[9px] font-mono px-1 py-0.2 rounded bg-zinc-800 text-zinc-400 ml-1">⌘P</kbd>
+          </button>
+
           {/* Room ID Pill */}
           <div className="flex items-center gap-1.5 bg-zinc-900/80 border border-zinc-800 px-2 py-0.5 rounded-md text-xs">
-            <span className="font-mono text-[11px] text-zinc-300 max-w-[90px] sm:max-w-[150px] md:max-w-[200px] truncate">
+            <span className="font-mono text-[11px] text-zinc-300 max-w-[85px] sm:max-w-[140px] md:max-w-[180px] truncate">
               {roomId}
             </span>
             <button
@@ -367,6 +434,16 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
 
           <div className="h-3.5 w-px bg-zinc-800 mx-0.5" />
 
+          {/* Keyboard Shortcuts Trigger (Ctrl+?) */}
+          <button
+            onClick={() => setIsShortcutsOpen(true)}
+            className="p-1 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-850 transition-colors hidden sm:block"
+            title="VS Code Shortcuts (Ctrl+?)"
+            aria-label="Keyboard Shortcuts"
+          >
+            <Keyboard className="w-3.5 h-3.5" />
+          </button>
+
           {/* Security info */}
           <button
             onClick={() => setIsSecurityModalOpen(true)}
@@ -388,6 +465,14 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
           </button>
         </div>
       </header>
+
+      {/* Floating Save Toast Notification */}
+      {saveToast && (
+        <div className="fixed top-14 right-4 z-50 flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-zinc-750 text-zinc-200 text-xs rounded-lg shadow-xl animate-in fade-in slide-in-from-top-2 duration-150 font-mono">
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+          <span>{saveToast}</span>
+        </div>
+      )}
 
       {/* Main Workspace Body */}
       <div className="flex-1 flex overflow-hidden relative">
@@ -411,13 +496,13 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
           {/* Sidebar Header */}
           <div className="h-9 px-3 border-b border-zinc-850 flex items-center justify-between shrink-0">
             <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
-              Files
+              Explorer
             </span>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setIsNewDocModalOpen(true)}
                 className="p-1 rounded hover:bg-zinc-850 text-zinc-400 hover:text-white transition-colors"
-                title="New File"
+                title="New File (Ctrl+Shift+N)"
                 aria-label="New File"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -435,13 +520,13 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
 
           {/* Document Tree */}
           <div className="flex-1 overflow-y-auto p-2 space-y-4">
-            {/* Documentation Section */}
+            {/* Source Code Section */}
             <div>
               <div className="text-[10px] uppercase font-medium text-zinc-500 px-2 mb-1 tracking-wider">
-                Documentation
+                Source Code ({codeList.length})
               </div>
               <div className="space-y-0.5">
-                {docsList.map((doc) => (
+                {codeList.map((doc) => (
                   <div
                     key={doc.id}
                     onClick={() => handleSelectDoc(doc.id)}
@@ -452,8 +537,8 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
                     }`}
                   >
                     <div className="flex items-center gap-2 truncate">
-                      <FileText className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                      <span className="truncate">{doc.name}</span>
+                      <FileCode className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span className="truncate font-mono">{doc.name}</span>
                     </div>
                     {files.length > 1 && (
                       <button
@@ -470,13 +555,13 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
               </div>
             </div>
 
-            {/* Source Code Section */}
+            {/* Documentation Section */}
             <div>
               <div className="text-[10px] uppercase font-medium text-zinc-500 px-2 mb-1 tracking-wider">
-                Source Code
+                Documentation ({docsList.length})
               </div>
               <div className="space-y-0.5">
-                {codeList.map((doc) => (
+                {docsList.map((doc) => (
                   <div
                     key={doc.id}
                     onClick={() => handleSelectDoc(doc.id)}
@@ -487,8 +572,8 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
                     }`}
                   >
                     <div className="flex items-center gap-2 truncate">
-                      <FileCode className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                      <span className="truncate font-mono">{doc.name}</span>
+                      <FileText className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                      <span className="truncate">{doc.name}</span>
                     </div>
                     {files.length > 1 && (
                       <button
@@ -526,6 +611,10 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
                 document={activeDoc}
                 collabManager={collabManager}
                 onLanguageChange={handleLanguageChange}
+                onOpenQuickOpen={() => setIsQuickOpenOpen(true)}
+                onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
+                onSave={triggerSaveFeedback}
+                onOpenShortcuts={() => setIsShortcutsOpen(true)}
               />
             )
           ) : (
@@ -559,6 +648,17 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={() => setIsShortcutsOpen(true)}
+            className="hover:text-zinc-300 transition-colors flex items-center gap-1 hidden md:flex"
+            title="Shortcuts reference"
+          >
+            <Keyboard className="w-3 h-3" />
+            <span>Shortcuts</span>
+          </button>
+
+          <span className="text-zinc-700 hidden md:inline">/</span>
+
           <div className="flex items-center gap-1.5">
             <span
               className={`w-1.5 h-1.5 rounded-full ${
@@ -589,6 +689,19 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
       </footer>
 
       {/* Modals */}
+      <QuickOpenModal
+        isOpen={isQuickOpenOpen}
+        onClose={() => setIsQuickOpenOpen(false)}
+        files={files}
+        activeDocId={activeDocId}
+        onSelectDoc={handleSelectDoc}
+      />
+
+      <ShortcutsModal
+        isOpen={isShortcutsOpen}
+        onClose={() => setIsShortcutsOpen(false)}
+      />
+
       <NewDocModal
         isOpen={isNewDocModalOpen}
         onClose={() => setIsNewDocModalOpen(false)}

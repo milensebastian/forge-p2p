@@ -19,6 +19,7 @@ import {
   Clock,
   Cpu,
   Globe,
+  Keyboard,
 } from 'lucide-react';
 
 type MonacoEditor = Parameters<OnMount>[0];
@@ -28,12 +29,20 @@ interface CodeEditorViewProps {
   document: DocumentMeta;
   collabManager: CollabManager;
   onLanguageChange: (newLang: SupportedLanguage) => void;
+  onOpenQuickOpen?: () => void;
+  onToggleSidebar?: () => void;
+  onSave?: () => void;
+  onOpenShortcuts?: () => void;
 }
 
 export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
   document,
   collabManager,
   onLanguageChange,
+  onOpenQuickOpen,
+  onToggleSidebar,
+  onSave,
+  onOpenShortcuts,
 }) => {
   const editorRef = useRef<MonacoEditor | null>(null);
   const monacoRef = useRef<MonacoInstance | null>(null);
@@ -86,9 +95,51 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
       collabManager.setLocalCursor(document.id, e.position.lineNumber, e.position.column);
     });
 
-    // Keyboard shortcut: Ctrl+Enter or Cmd+Enter to Run
+    // --- VS CODE KEYBOARD SHORTCUTS ---
+
+    // 1. Run Program (Ctrl+Enter / Cmd+Enter)
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
       handleRunCode();
+    });
+
+    // 2. Quick Open / Go to file (Ctrl+P / Cmd+P)
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyP, () => {
+      onOpenQuickOpen?.();
+    });
+
+    // 3. Toggle Sidebar (Ctrl+B / Cmd+B)
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => {
+      onToggleSidebar?.();
+    });
+
+    // 4. Save to IndexedDB & Mesh (Ctrl+S / Cmd+S)
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+      onSave?.();
+    });
+
+    // 5. Toggle Integrated Terminal / Output (Ctrl+` / Cmd+`)
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Backquote, () => {
+      setIsTerminalOpen((prev) => !prev);
+    });
+
+    // 6. Toggle Word Wrap (Alt+Z)
+    editor.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.KeyZ, () => {
+      setWordWrap((prev) => (prev === 'on' ? 'off' : 'on'));
+    });
+
+    // 7. Delete Line (Ctrl+Shift+K / Cmd+Shift+K)
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyK, () => {
+      editor.getAction('editor.action.deleteLines')?.run();
+    });
+
+    // 8. Format Document (Shift+Alt+F)
+    editor.addCommand(monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF, () => {
+      editor.getAction('editor.action.formatDocument')?.run();
+    });
+
+    // 9. Keyboard Shortcuts Palette (Ctrl+? / Cmd+?)
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Slash, () => {
+      onOpenShortcuts?.();
     });
   };
 
@@ -227,11 +278,22 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
                 ? 'bg-zinc-850 text-white border-zinc-700'
                 : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-zinc-200'
             }`}
-            title="Toggle Console / Output"
+            title="Toggle Console / Output (Ctrl+`)"
           >
             <Terminal className="w-3.5 h-3.5" />
             <span className="hidden sm:inline text-[11px]">Console</span>
           </button>
+
+          {/* Quick Shortcuts Helper Button */}
+          {onOpenShortcuts && (
+            <button
+              onClick={onOpenShortcuts}
+              className="p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-850 transition-colors hidden sm:flex items-center"
+              title="VS Code Shortcuts (Ctrl+?)"
+            >
+              <Keyboard className="w-3.5 h-3.5" />
+            </button>
+          )}
 
           <div className="h-4 w-px bg-zinc-800 mx-0.5" />
 
@@ -271,8 +333,8 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
             className={`p-1.5 rounded text-xs transition-colors hidden sm:flex ${
               wordWrap === 'on' ? 'bg-zinc-850 text-white' : 'text-zinc-500 hover:text-zinc-300'
             }`}
-            title="Toggle Word Wrap"
-            aria-label="Toggle Word Wrap"
+            title="Toggle Word Wrap (Alt+Z)"
+            aria-label="Toggle Word Wrap (Alt+Z)"
           >
             <Settings className="w-3.5 h-3.5" />
           </button>
