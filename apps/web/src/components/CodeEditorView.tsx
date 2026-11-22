@@ -71,21 +71,21 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
       base: 'vs-dark',
       inherit: true,
       rules: [
-        { token: 'comment', foreground: '71717a', fontStyle: 'italic' },
-        { token: 'keyword', foreground: '10b981' },
+        { token: 'comment', foreground: '62677b', fontStyle: 'italic' },
+        { token: 'keyword', foreground: '818cf8' },
         { token: 'string', foreground: '38bdf8' },
         { token: 'number', foreground: 'fbbf24' },
-        { token: 'type', foreground: 'c084fc' },
+        { token: 'type', foreground: 'a78bfa' },
       ],
       colors: {
-        'editor.background': '#09090b',
+        'editor.background': '#0c0d10',
         'editor.foreground': '#e4e4e7',
-        'editorCursor.foreground': '#10b981',
-        'editor.lineHighlightBackground': '#18181b',
-        'editorLineNumber.foreground': '#52525b',
+        'editorCursor.foreground': '#818cf8',
+        'editor.lineHighlightBackground': '#15161e',
+        'editorLineNumber.foreground': '#434757',
         'editorLineNumber.activeForeground': '#a1a1aa',
-        'editor.selectionBackground': '#27272a99',
-        'editorGutter.background': '#09090b',
+        'editor.selectionBackground': '#2b2e3d',
+        'editorGutter.background': '#0c0d10',
       },
     });
     monaco.editor.setTheme('forge-dark');
@@ -278,15 +278,15 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
   const currentCode = collabManager.getText(document.id).toString();
 
   return (
-    <div className="flex flex-col h-full bg-zinc-950 overflow-hidden relative">
+    <div className="flex flex-col h-full bg-[#0c0d10] overflow-hidden relative">
       {/* Code Editor Header Bar */}
-      <div className="h-10 px-3 border-b border-zinc-850 flex items-center justify-between shrink-0 gap-2 bg-zinc-950">
+      <div className="h-9 px-3 border-b border-[#1e2029] flex items-center justify-between shrink-0 gap-2 bg-[#0e0f13]">
         <div className="flex items-center gap-2 shrink-0">
           <Code2 className="w-4 h-4 text-zinc-400 shrink-0" />
           <span className="text-xs font-mono text-zinc-200 truncate max-w-[140px] sm:max-w-none">
             {document.name}
           </span>
-          <span className="text-[10px] font-mono text-zinc-500 uppercase px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 hidden sm:inline">
+          <span className="text-[10px] font-mono text-zinc-400 uppercase px-1.5 py-0.5 rounded bg-[#14151b] border border-[#23252f] hidden sm:inline">
             {langConfig.label}
           </span>
         </div>
@@ -296,10 +296,10 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
           <button
             onClick={handleRunCode}
             disabled={isRunning}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium transition-all shadow-xs ${
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all shadow-xs ${
               isRunning
-                ? 'bg-zinc-800 text-zinc-400 cursor-not-allowed'
-                : 'bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-semibold active:scale-[0.98]'
+                ? 'bg-[#181922] text-zinc-500 cursor-not-allowed border border-[#23252f]'
+                : 'bg-indigo-600 hover:bg-indigo-500 text-white font-medium border border-indigo-500 active:scale-[0.98]'
             }`}
             title="Run code (Ctrl + Enter)"
           >
@@ -315,14 +315,14 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
           {/* Toggle Terminal drawer */}
           <button
             onClick={() => setIsTerminalOpen(!isTerminalOpen)}
-            className={`p-1.5 rounded-md text-xs transition-colors flex items-center gap-1 border ${
+            className={`px-2 py-1 rounded-md text-xs transition-colors flex items-center gap-1 border ${
               isTerminalOpen
-                ? 'bg-zinc-850 text-white border-zinc-700'
-                : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-zinc-200'
+                ? 'bg-[#181922] text-white border-[#2b2d3a]'
+                : 'bg-[#121318] text-zinc-400 border-[#1e2029] hover:text-zinc-200 hover:bg-[#181922]'
             }`}
             title="Toggle Console / Output (Ctrl+`)"
           >
-            <Terminal className="w-3.5 h-3.5" />
+            <Terminal className="w-3.5 h-3.5 text-indigo-400" />
             <span className="hidden sm:inline text-[11px]">Console</span>
           </button>
 
@@ -330,21 +330,21 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
           {onOpenShortcuts && (
             <button
               onClick={onOpenShortcuts}
-              className="p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-850 transition-colors hidden sm:flex items-center"
+              className="p-1 rounded-md text-zinc-400 hover:text-white hover:bg-[#181922] transition-colors hidden sm:flex items-center"
               title="VS Code Shortcuts (Ctrl+?)"
             >
               <Keyboard className="w-3.5 h-3.5" />
             </button>
           )}
 
-          <div className="h-4 w-px bg-zinc-800 mx-0.5" />
+          <div className="h-3 w-px bg-[#23252f] mx-0.5" />
 
           {/* Language Selector */}
           <select
             value={document.language}
             onChange={(e) => onLanguageChange(e.target.value as SupportedLanguage)}
             aria-label="Language"
-            className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-300 focus:outline-none focus:border-zinc-600 font-mono"
+            className="bg-[#121318] border border-[#1e2029] rounded px-2 py-0.5 text-xs text-zinc-300 focus:outline-none focus:border-indigo-500/80 font-mono"
           >
             {Object.entries(categorizedLanguages).map(([cat, langs]) => (
               <optgroup key={cat} label={cat}>
@@ -360,8 +360,8 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
           {/* Minimap toggle */}
           <button
             onClick={() => setShowMinimap(!showMinimap)}
-            className={`p-1.5 rounded text-xs transition-colors hidden sm:flex ${
-              showMinimap ? 'bg-zinc-850 text-white' : 'text-zinc-500 hover:text-zinc-300'
+            className={`p-1 rounded text-xs transition-colors hidden sm:flex ${
+              showMinimap ? 'bg-[#181922] text-white' : 'text-zinc-500 hover:text-zinc-300'
             }`}
             title="Toggle Minimap"
             aria-label="Toggle Minimap"
@@ -372,8 +372,8 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
           {/* Word wrap toggle */}
           <button
             onClick={() => setWordWrap(wordWrap === 'on' ? 'off' : 'on')}
-            className={`p-1.5 rounded text-xs transition-colors hidden sm:flex ${
-              wordWrap === 'on' ? 'bg-zinc-850 text-white' : 'text-zinc-500 hover:text-zinc-300'
+            className={`p-1 rounded text-xs transition-colors hidden sm:flex ${
+              wordWrap === 'on' ? 'bg-[#181922] text-white' : 'text-zinc-500 hover:text-zinc-300'
             }`}
             title="Toggle Word Wrap (Alt+Z)"
             aria-label="Toggle Word Wrap (Alt+Z)"
@@ -384,7 +384,7 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
       </div>
 
       {/* Monaco Container */}
-      <div className="flex-1 w-full h-full relative overflow-hidden bg-zinc-950">
+      <div className="flex-1 w-full h-full relative overflow-hidden bg-[#0c0d10]">
         <Editor
           height="100%"
           language={langConfig.monacoLang}
@@ -410,22 +410,22 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
       {/* Execution Terminal / Output Panel */}
       {isTerminalOpen && (
         <div
-          className={`border-t border-zinc-800 bg-zinc-950 flex flex-col shrink-0 z-20 shadow-2xl transition-all duration-150 ${
+          className={`border-t border-[#1e2029] bg-[#0c0d10] flex flex-col shrink-0 z-20 shadow-2xl transition-all duration-150 ${
             isTerminalMaximized ? 'h-[75%]' : 'h-64 sm:h-72'
           }`}
         >
           {/* Terminal Tabs & Toolbar */}
-          <div className="h-9 px-3 border-b border-zinc-850 bg-zinc-900/60 flex items-center justify-between shrink-0 select-none">
+          <div className="h-8 px-3 border-b border-[#1e2029] bg-[#0e0f13] flex items-center justify-between shrink-0 select-none">
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setTerminalTab('output')}
-                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${
+                className={`px-2 py-0.5 text-xs font-medium rounded transition-colors flex items-center gap-1.5 ${
                   terminalTab === 'output'
-                    ? 'bg-zinc-800 text-white'
+                    ? 'bg-[#181922] text-white border border-[#2b2d3a]'
                     : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
-                <Terminal className="w-3 h-3 text-emerald-400" />
+                <Terminal className="w-3 h-3 text-indigo-400" />
                 <span>Console Output</span>
                 {executionResult && (
                   <span
@@ -438,28 +438,28 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
 
               <button
                 onClick={() => setTerminalTab('stdin')}
-                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${
+                className={`px-2 py-0.5 text-xs font-medium rounded transition-colors flex items-center gap-1.5 ${
                   terminalTab === 'stdin'
-                    ? 'bg-zinc-800 text-white'
+                    ? 'bg-[#181922] text-white border border-[#2b2d3a]'
                     : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
                 <span>Input (stdin)</span>
                 {stdinInput && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
                 )}
               </button>
 
               {(langConfig.id === 'html' || langConfig.id === 'css' || langConfig.id === 'javascript') && (
                 <button
                   onClick={() => setTerminalTab('preview')}
-                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${
+                  className={`px-2 py-0.5 text-xs font-medium rounded transition-colors flex items-center gap-1.5 ${
                     terminalTab === 'preview'
-                      ? 'bg-zinc-800 text-white'
+                      ? 'bg-[#181922] text-white border border-[#2b2d3a]'
                       : 'text-zinc-400 hover:text-zinc-200'
                   }`}
                 >
-                  <Globe className="w-3 h-3 text-cyan-400" />
+                  <Globe className="w-3 h-3 text-indigo-400" />
                   <span>Web Preview</span>
                 </button>
               )}
@@ -500,18 +500,18 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
           </div>
 
           {/* Terminal Content Body */}
-          <div className="flex-1 overflow-auto p-3 font-mono text-xs leading-relaxed bg-zinc-950 select-text">
+          <div className="flex-1 overflow-auto p-3 font-mono text-xs leading-relaxed bg-[#0c0d10] select-text">
             {terminalTab === 'output' && (
               <>
                 {isRunning ? (
                   <div className="flex items-center gap-2 text-zinc-400 py-4 px-2">
-                    <RotateCcw className="w-4 h-4 text-emerald-400 animate-spin" />
+                    <RotateCcw className="w-4 h-4 text-indigo-400 animate-spin" />
                     <span>Executing {langConfig.label} program...</span>
                   </div>
                 ) : executionResult ? (
                   <div className="space-y-3">
                     {/* Execution Meta Bar */}
-                    <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-zinc-850 text-[11px] text-zinc-400">
+                    <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#1e2029] text-[11px] text-zinc-400">
                       <div className="flex items-center gap-2">
                         {executionResult.status === 'success' ? (
                           <span className="flex items-center gap-1 text-emerald-400 font-semibold">
@@ -572,8 +572,8 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
                     )}
                   </div>
                 ) : (
-                  <div className="text-zinc-600 py-4 px-2 space-y-1">
-                    <div>Click <span className="text-emerald-400 font-medium">Run ▶</span> or press <kbd className="px-1 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300">Ctrl+Enter</kbd> to execute this {langConfig.label} file.</div>
+                  <div className="text-zinc-500 py-4 px-2 space-y-1">
+                    <div>Click <span className="text-indigo-400 font-medium">Run ▶</span> or press <kbd className="px-1.5 py-0.5 rounded bg-[#14151b] border border-[#23252f] text-zinc-300">Ctrl+Enter</kbd> to execute this {langConfig.label} file.</div>
                     <div className="text-[11px] text-zinc-600">Supports Python, C, C++, Rust, Go, Java, C#, JS, TS, Bash, PHP, Ruby, R, Swift, Kotlin, SQL.</div>
                   </div>
                 )}
@@ -589,7 +589,7 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
                   value={stdinInput}
                   onChange={(e) => setStdinInput(e.target.value)}
                   placeholder="Type stdin input here..."
-                  className="flex-1 w-full p-2 bg-zinc-900/80 border border-zinc-800 rounded text-zinc-200 font-mono text-xs focus:outline-none focus:border-zinc-600 resize-none"
+                  className="flex-1 w-full p-2 bg-[#121318] border border-[#1e2029] rounded text-zinc-200 font-mono text-xs focus:outline-none focus:border-indigo-500/80 resize-none"
                 />
               </div>
             )}

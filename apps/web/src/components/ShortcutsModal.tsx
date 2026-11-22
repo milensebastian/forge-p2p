@@ -128,7 +128,7 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
     >
       <div className="space-y-4">
         {/* Search Bar */}
-        <div className="flex items-center gap-2 px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-lg">
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#0c0d10] border border-[#23252f] rounded-md">
           <Search className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
           <input
             type="text"
@@ -146,8 +146,8 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
 
         {/* Live Recording Banner */}
         {editingId && (
-          <div className="p-3 bg-zinc-900 border border-emerald-500/50 rounded-xl space-y-2 animate-in fade-in zoom-in-95 duration-100">
-            <div className="flex items-center justify-between text-xs font-medium text-emerald-400">
+          <div className="p-3 bg-[#14151b] border border-indigo-500/50 rounded-lg space-y-2 animate-in fade-in zoom-in-95 duration-100">
+            <div className="flex items-center justify-between text-xs font-medium text-indigo-400">
               <span className="flex items-center gap-1.5">
                 <Keyboard className="w-4 h-4 animate-pulse" />
                 <span>Recording shortcut for &ldquo;{bindings.find((b) => b.id === editingId)?.label}&rdquo;</span>
@@ -163,13 +163,13 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
               </button>
             </div>
 
-            <div className="flex items-center justify-between bg-zinc-950 p-2.5 rounded-lg border border-zinc-850">
+            <div className="flex items-center justify-between bg-[#0c0d10] p-2.5 rounded-md border border-[#23252f]">
               <div className="flex items-center gap-1.5 font-mono">
                 {recordedCombo ? (
                   formatKeyCombo(recordedCombo, isMac).map((k, i) => (
                     <kbd
                       key={i}
-                      className="px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-xs font-semibold text-emerald-300"
+                      className="px-2 py-1 rounded bg-[#181922] border border-[#282a38] text-xs font-semibold text-indigo-300"
                     >
                       {k}
                     </kbd>
@@ -184,7 +184,7 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
                   <span className="text-zinc-500 text-[11px]">Press Enter to save</span>
                   <Button
                     size="xs"
-                    variant="primary"
+                    variant="accent"
                     onClick={() => {
                       saveKeybinding(editingId, recordedCombo);
                       setBindings(loadKeybindings());
@@ -215,17 +215,17 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
                 <div
                   key={item.id}
                   onClick={() => handleStartEdit(item)}
-                  className={`group px-3 py-2.5 rounded-lg border text-xs flex items-center justify-between gap-3 cursor-pointer transition-colors ${
+                  className={`group px-3 py-2 rounded-md border text-xs flex items-center justify-between gap-3 cursor-pointer transition-colors ${
                     isEditing
-                      ? 'bg-zinc-850/80 border-emerald-500/40 text-white'
-                      : 'bg-zinc-950/40 border-zinc-850/80 hover:bg-zinc-900/60 hover:border-zinc-800 text-zinc-300'
+                      ? 'bg-[#181922] border-indigo-500/50 text-white'
+                      : 'bg-[#0c0d10] border-[#1e2029] hover:bg-[#14151b] hover:border-[#23252f] text-zinc-300'
                   }`}
                 >
                   <div className="flex flex-col min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-zinc-200 truncate">{item.label}</span>
                       {item.isCustom && (
-                        <span className="text-[9px] font-mono uppercase px-1 py-0.2 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                        <span className="text-[9px] font-mono uppercase px-1 py-0.2 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/30">
                           Customized
                         </span>
                       )}
@@ -239,7 +239,7 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
                       {formatKeyCombo(item.combo, isMac).map((k, kIdx) => (
                         <kbd
                           key={kIdx}
-                          className="px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-[11px] font-medium text-zinc-300 shadow-xs"
+                          className="px-1.5 py-0.5 rounded bg-[#14151b] border border-[#23252f] text-[11px] font-medium text-zinc-300 shadow-xs"
                         >
                           {k}
                         </kbd>
@@ -250,7 +250,7 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
                     {item.isCustom && (
                       <button
                         onClick={(e) => handleResetSingle(item.id, e)}
-                        className="p-1 rounded text-zinc-500 hover:text-amber-400 hover:bg-zinc-800 transition-colors"
+                        className="p-1 rounded text-zinc-500 hover:text-indigo-400 hover:bg-[#181922] transition-colors"
                         title="Reset to default"
                         aria-label="Reset to default"
                       >
@@ -264,7 +264,7 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
                         e.stopPropagation();
                         handleStartEdit(item);
                       }}
-                      className="p-1 rounded text-zinc-500 hover:text-white hover:bg-zinc-800 transition-colors opacity-0 group-hover:opacity-100"
+                      className="p-1 rounded text-zinc-500 hover:text-white hover:bg-[#181922] transition-colors opacity-0 group-hover:opacity-100"
                       title="Edit keybinding"
                       aria-label="Edit keybinding"
                     >
@@ -282,7 +282,7 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
         </div>
 
         {/* Footer */}
-        <div className="pt-3 border-t border-zinc-850 flex items-center justify-between text-xs text-zinc-500">
+        <div className="pt-3 border-t border-[#1e2029] flex items-center justify-between text-xs text-zinc-500">
           <div>
             {hasAnyCustom && (
               <button

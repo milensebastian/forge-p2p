@@ -52,7 +52,7 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({ isOpen, onClose, roo
           width: 240,
           margin: 1.5,
           color: {
-            dark: '#09090b',
+            dark: '#0c0d10',
             light: '#ffffff',
           },
         });
@@ -97,66 +97,66 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({ isOpen, onClose, roo
     >
       <div className="space-y-4">
         {/* QR Code Container */}
-        <div className="flex flex-col items-center justify-center p-4 bg-zinc-950 border border-zinc-800 rounded-xl">
+        <div className="flex flex-col items-center justify-center p-4 bg-[#0c0d10] border border-[#23252f] rounded-lg">
           {qrDataUrl ? (
-            <div className="p-2.5 bg-white rounded-lg shadow-sm">
-              <img
-                src={qrDataUrl}
-                alt={`QR code for room ${roomId}`}
-                className="w-44 h-44 sm:w-48 sm:h-48 object-contain"
-              />
-            </div>
+            <img
+              src={qrDataUrl}
+              alt="Workspace QR code"
+              className="w-48 h-48 rounded-md bg-white p-2 shadow-xs"
+            />
           ) : (
-            <div className="w-44 h-44 sm:w-48 sm:h-48 flex items-center justify-center text-zinc-600 text-xs font-mono">
+            <div className="w-48 h-48 rounded-md bg-[#14151b] flex items-center justify-center text-zinc-500 text-xs">
               Generating QR...
             </div>
           )}
-
-          <div className="flex items-center gap-1.5 mt-3 text-xs text-zinc-400">
-            <Smartphone className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-            <span>Point camera to join on mobile device</span>
+          <div className="flex items-center gap-1.5 text-xs text-zinc-400 mt-3 font-mono">
+            <Smartphone className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Instant mobile camera pairing</span>
           </div>
         </div>
 
-        {/* Room ID */}
-        <div className="p-3 bg-zinc-950 border border-zinc-800 rounded-xl space-y-1.5">
-          <div className="flex items-center justify-between text-xs text-zinc-400">
-            <span>Room ID</span>
-            <button
-              onClick={handleCopyRoomId}
-              className="flex items-center gap-1 text-[11px] text-zinc-300 hover:text-white transition-colors"
-            >
-              {isRoomCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-              {isRoomCopied ? 'Copied' : 'Copy'}
-            </button>
-          </div>
-          <div className="font-mono text-xs text-zinc-200 select-all break-all bg-zinc-900/80 px-2.5 py-1.5 rounded border border-zinc-850">
-            {roomId}
-          </div>
-        </div>
-
-        {/* Mobile LAN Share Link */}
-        <div className="p-3 bg-zinc-950 border border-zinc-800 rounded-xl space-y-1.5">
-          <div className="flex items-center justify-between text-xs text-zinc-400">
-            <span>Direct Link</span>
-            <button
+        {/* Share URL */}
+        <div>
+          <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+            Share Link
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              readOnly
+              value={shareUrl}
+              className="flex-1 px-3 py-1.5 rounded-md bg-[#0c0d10] border border-[#23252f] text-xs font-mono text-zinc-300 focus:outline-none"
+            />
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={handleCopyUrl}
-              className="flex items-center gap-1 text-[11px] text-zinc-300 hover:text-white transition-colors"
+              icon={isCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
             >
-              {isCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
               {isCopied ? 'Copied' : 'Copy'}
-            </button>
-          </div>
-          <div className="font-mono text-xs text-zinc-400 select-all break-all bg-zinc-900/80 px-2.5 py-1.5 rounded border border-zinc-850 truncate">
-            {shareUrl || 'Resolving...'}
+            </Button>
           </div>
         </div>
-      </div>
 
-      <div className="mt-5 flex justify-end">
-        <Button variant="secondary" size="sm" onClick={onClose}>
-          Done
-        </Button>
+        {/* Room ID Copy */}
+        <div className="p-3 rounded-md bg-[#0c0d10] border border-[#1e2029] flex items-center justify-between text-xs font-mono">
+          <div>
+            <div className="text-[10px] text-zinc-500 uppercase tracking-wider">Room Identifier</div>
+            <div className="text-zinc-200 font-medium truncate max-w-[220px]">{roomId}</div>
+          </div>
+          <button
+            onClick={handleCopyRoomId}
+            className="p-1 rounded text-zinc-400 hover:text-white transition-colors"
+            title="Copy room ID"
+          >
+            {isRoomCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+
+        <div className="p-2.5 rounded-md bg-[#14151b] border border-[#1e2029] text-[11px] text-zinc-400 flex items-center gap-2">
+          <Wifi className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+          <span>Peers connect via direct WebRTC data channels with automatic STUN/TURN fallback.</span>
+        </div>
       </div>
     </Modal>
   );

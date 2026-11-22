@@ -143,14 +143,14 @@ export const MarkdownEditorView: React.FC<MarkdownEditorViewProps> = ({
   }, [content]);
 
   return (
-    <div className="flex flex-col h-full bg-zinc-950">
+    <div className="flex flex-col h-full bg-[#0c0d10]">
       {/* Markdown Sub-toolbar */}
-      <div className="h-9 px-3 border-b border-zinc-850 flex items-center justify-between shrink-0 gap-2 bg-zinc-950">
+      <div className="h-9 px-3 border-b border-[#1e2029] flex items-center justify-between shrink-0 gap-2 bg-[#0e0f13]">
         {/* Quick Format Tools */}
         <div className="flex items-center gap-0.5">
           <button
             onClick={() => insertFormatting('**', '**', 'bold')}
-            className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850 transition-colors"
+            className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-[#181922] transition-colors"
             title="Bold"
             aria-label="Bold"
           >
@@ -158,7 +158,7 @@ export const MarkdownEditorView: React.FC<MarkdownEditorViewProps> = ({
           </button>
           <button
             onClick={() => insertFormatting('*', '*', 'italic')}
-            className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850 transition-colors"
+            className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-[#181922] transition-colors"
             title="Italic"
             aria-label="Italic"
           >
@@ -166,7 +166,7 @@ export const MarkdownEditorView: React.FC<MarkdownEditorViewProps> = ({
           </button>
           <button
             onClick={() => insertFormatting('# ', '', 'Heading 1')}
-            className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850 transition-colors"
+            className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-[#181922] transition-colors"
             title="Heading 1"
             aria-label="Heading 1"
           >
@@ -174,7 +174,7 @@ export const MarkdownEditorView: React.FC<MarkdownEditorViewProps> = ({
           </button>
           <button
             onClick={() => insertFormatting('## ', '', 'Heading 2')}
-            className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850 transition-colors"
+            className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-[#181922] transition-colors"
             title="Heading 2"
             aria-label="Heading 2"
           >
@@ -182,7 +182,7 @@ export const MarkdownEditorView: React.FC<MarkdownEditorViewProps> = ({
           </button>
           <button
             onClick={() => insertFormatting('`', '`', 'code')}
-            className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850 transition-colors"
+            className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-[#181922] transition-colors"
             title="Inline Code"
             aria-label="Inline Code"
           >
@@ -190,7 +190,7 @@ export const MarkdownEditorView: React.FC<MarkdownEditorViewProps> = ({
           </button>
           <button
             onClick={() => insertFormatting('- ', '', 'List item')}
-            className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850 transition-colors hidden sm:flex"
+            className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-[#181922] transition-colors hidden sm:flex"
             title="Bullet List"
             aria-label="Bullet List"
           >
@@ -198,7 +198,7 @@ export const MarkdownEditorView: React.FC<MarkdownEditorViewProps> = ({
           </button>
           <button
             onClick={() => insertFormatting('> ', '', 'Quote')}
-            className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850 transition-colors hidden sm:flex"
+            className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-[#181922] transition-colors hidden sm:flex"
             title="Quote"
             aria-label="Quote"
           >
@@ -209,11 +209,11 @@ export const MarkdownEditorView: React.FC<MarkdownEditorViewProps> = ({
         {/* View Mode Segmented Controls */}
         <div className="flex items-center gap-2">
           {/* Desktop 3-Way Switch */}
-          <div className="hidden md:flex items-center bg-zinc-900 border border-zinc-800 rounded-md p-0.5">
+          <div className="hidden md:flex items-center bg-[#121318] border border-[#1e2029] rounded-md p-0.5">
             <button
               onClick={() => setViewMode('editor')}
               className={`p-1 rounded text-xs transition-colors ${
-                viewMode === 'editor' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200'
+                viewMode === 'editor' ? 'bg-[#181922] text-white' : 'text-zinc-400 hover:text-zinc-200'
               }`}
               title="Editor only"
             >
@@ -222,7 +222,7 @@ export const MarkdownEditorView: React.FC<MarkdownEditorViewProps> = ({
             <button
               onClick={() => setViewMode('split')}
               className={`p-1 rounded text-xs transition-colors ${
-                viewMode === 'split' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200'
+                viewMode === 'split' ? 'bg-[#181922] text-white' : 'text-zinc-400 hover:text-zinc-200'
               }`}
               title="Split view"
             >
@@ -231,7 +231,7 @@ export const MarkdownEditorView: React.FC<MarkdownEditorViewProps> = ({
             <button
               onClick={() => setViewMode('preview')}
               className={`p-1 rounded text-xs transition-colors ${
-                viewMode === 'preview' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-zinc-200'
+                viewMode === 'preview' ? 'bg-[#181922] text-white' : 'text-zinc-400 hover:text-zinc-200'
               }`}
               title="Preview only"
             >
@@ -240,11 +240,11 @@ export const MarkdownEditorView: React.FC<MarkdownEditorViewProps> = ({
           </div>
 
           {/* Mobile 2-Way Switch */}
-          <div className="flex md:hidden items-center bg-zinc-900 border border-zinc-800 rounded-md p-0.5">
+          <div className="flex md:hidden items-center bg-[#121318] border border-[#1e2029] rounded-md p-0.5">
             <button
               onClick={() => setViewMode('editor')}
               className={`px-2 py-0.5 text-xs font-medium rounded transition-colors ${
-                viewMode !== 'preview' ? 'bg-zinc-800 text-white' : 'text-zinc-400'
+                viewMode !== 'preview' ? 'bg-[#181922] text-white' : 'text-zinc-400'
               }`}
             >
               Edit
@@ -252,7 +252,7 @@ export const MarkdownEditorView: React.FC<MarkdownEditorViewProps> = ({
             <button
               onClick={() => setViewMode('preview')}
               className={`px-2 py-0.5 text-xs font-medium rounded transition-colors ${
-                viewMode === 'preview' ? 'bg-zinc-800 text-white' : 'text-zinc-400'
+                viewMode === 'preview' ? 'bg-[#181922] text-white' : 'text-zinc-400'
               }`}
             >
               Preview
@@ -267,19 +267,19 @@ export const MarkdownEditorView: React.FC<MarkdownEditorViewProps> = ({
           <SplitPane
             initialRatio={0.5}
             left={
-              <div className="h-full flex flex-col bg-zinc-950">
+              <div className="h-full flex flex-col bg-[#0c0d10]">
                 <textarea
                   ref={textareaRef}
                   value={content}
                   onChange={handleTextChange}
                   placeholder="Start writing markdown..."
-                  className="w-full h-full p-4 sm:p-6 bg-transparent text-zinc-200 font-mono text-sm leading-relaxed resize-none focus:outline-none placeholder-zinc-700 selection:bg-zinc-800"
+                  className="w-full h-full p-4 sm:p-6 bg-transparent text-zinc-200 font-mono text-sm leading-relaxed resize-none focus:outline-none placeholder-zinc-700 selection:bg-indigo-500/30"
                   spellCheck={false}
                 />
               </div>
             }
             right={
-              <div className="h-full overflow-y-auto p-4 sm:p-6 bg-zinc-950 border-l border-zinc-850">
+              <div className="h-full overflow-y-auto p-4 sm:p-6 bg-[#0c0d10] border-l border-[#1e2029]">
                 <div
                   className="markdown-body max-w-2xl mx-auto"
                   dangerouslySetInnerHTML={{ __html: renderedHtml }}
@@ -290,20 +290,20 @@ export const MarkdownEditorView: React.FC<MarkdownEditorViewProps> = ({
         )}
 
         {viewMode === 'editor' && (
-          <div className="h-full flex flex-col bg-zinc-950">
+          <div className="h-full flex flex-col bg-[#0c0d10]">
             <textarea
               ref={textareaRef}
               value={content}
               onChange={handleTextChange}
               placeholder="Start writing markdown..."
-              className="w-full h-full p-4 sm:p-6 bg-transparent text-zinc-200 font-mono text-sm leading-relaxed resize-none focus:outline-none placeholder-zinc-700 selection:bg-zinc-800"
+              className="w-full h-full p-4 sm:p-6 bg-transparent text-zinc-200 font-mono text-sm leading-relaxed resize-none focus:outline-none placeholder-zinc-700 selection:bg-indigo-500/30"
               spellCheck={false}
             />
           </div>
         )}
 
         {viewMode === 'preview' && (
-          <div className="h-full overflow-y-auto p-4 sm:p-8 bg-zinc-950">
+          <div className="h-full overflow-y-auto p-4 sm:p-8 bg-[#0c0d10]">
             <div
               className="markdown-body max-w-3xl mx-auto"
               dangerouslySetInnerHTML={{ __html: renderedHtml }}

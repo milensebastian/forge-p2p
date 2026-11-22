@@ -18,9 +18,9 @@ export const SecurityModal: React.FC<SecurityModalProps> = ({ isOpen, onClose })
     >
       <div className="space-y-3 text-xs text-zinc-300 leading-relaxed max-h-[60vh] overflow-y-auto pr-1">
         {/* Zero Server Storage */}
-        <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 space-y-1">
+        <div className="p-3 rounded-md bg-[#0c0d10] border border-[#23252f] space-y-1">
           <div className="flex items-center gap-2 font-medium text-zinc-200">
-            <HardDrive className="w-3.5 h-3.5 text-zinc-400" />
+            <HardDrive className="w-3.5 h-3.5 text-indigo-400" />
             <span>Zero Server Document Storage</span>
           </div>
           <p className="text-zinc-400 text-[11px] leading-relaxed">
@@ -29,9 +29,9 @@ export const SecurityModal: React.FC<SecurityModalProps> = ({ isOpen, onClose })
         </div>
 
         {/* DTLS Transport */}
-        <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 space-y-1">
+        <div className="p-3 rounded-md bg-[#0c0d10] border border-[#23252f] space-y-1">
           <div className="flex items-center gap-2 font-medium text-zinc-200">
-            <Lock className="w-3.5 h-3.5 text-zinc-400" />
+            <Lock className="w-3.5 h-3.5 text-indigo-400" />
             <span>Transport Security (DTLS)</span>
           </div>
           <p className="text-zinc-400 text-[11px] leading-relaxed">
@@ -40,9 +40,9 @@ export const SecurityModal: React.FC<SecurityModalProps> = ({ isOpen, onClose })
         </div>
 
         {/* Room Access */}
-        <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 space-y-1">
+        <div className="p-3 rounded-md bg-[#0c0d10] border border-[#23252f] space-y-1">
           <div className="flex items-center gap-2 font-medium text-zinc-200">
-            <Shield className="w-3.5 h-3.5 text-zinc-400" />
+            <Shield className="w-3.5 h-3.5 text-indigo-400" />
             <span>Room Identifiers</span>
           </div>
           <p className="text-zinc-400 text-[11px] leading-relaxed">
@@ -51,9 +51,9 @@ export const SecurityModal: React.FC<SecurityModalProps> = ({ isOpen, onClose })
         </div>
 
         {/* Signaling */}
-        <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 space-y-1">
+        <div className="p-3 rounded-md bg-[#0c0d10] border border-[#23252f] space-y-1">
           <div className="flex items-center gap-2 font-medium text-zinc-200">
-            <Radio className="w-3.5 h-3.5 text-zinc-400" />
+            <Radio className="w-3.5 h-3.5 text-indigo-400" />
             <span>Signaling & NAT Traversal</span>
           </div>
           <p className="text-zinc-400 text-[11px] leading-relaxed">
@@ -62,7 +62,7 @@ export const SecurityModal: React.FC<SecurityModalProps> = ({ isOpen, onClose })
         </div>
       </div>
 
-      <div className="mt-5 flex justify-end">
+      <div className="mt-5 flex justify-end border-t border-[#1e2029] pt-3">
         <Button variant="secondary" size="sm" onClick={onClose}>
           Close
         </Button>

@@ -99,72 +99,72 @@ export const NewDocModal: React.FC<NewDocModalProps> = ({ isOpen, onClose, onCre
             onChange={(e) => handleNameChange(e.target.value)}
             placeholder="e.g. main.py, solver.cpp, index.ts, query.sql"
             autoFocus
-            className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-800 text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-500 text-sm font-mono"
+            className="w-full px-3 py-1.5 rounded-md bg-[#0c0d10] border border-[#23252f] text-sm font-mono text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-indigo-500/80 transition-colors"
           />
           {error && <p className="text-xs text-rose-400 mt-1">{error}</p>}
         </div>
 
+        {/* Document Type Selector */}
         <div>
           <label className="block text-xs font-medium text-zinc-400 mb-1.5">
-            Document Type
+            Document Kind
           </label>
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => {
                 setType('code');
-                if (language === 'markdown') setLanguage('typescript');
+                if (!name.includes('.')) {
+                  setName('main.ts');
+                }
               }}
-              className={`p-3 rounded-lg border text-left flex items-start gap-2.5 transition-colors ${
+              className={`p-2 rounded-md border text-xs font-medium flex items-center justify-center gap-2 transition-colors ${
                 type === 'code'
-                  ? 'bg-zinc-850 border-zinc-700 text-white'
-                  : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                  ? 'bg-[#181922] border-indigo-500/80 text-white'
+                  : 'bg-[#0c0d10] border-[#23252f] text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              <FileCode className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
-              <div>
-                <div className="text-xs font-medium">Executable Code</div>
-                <div className="text-[10px] text-zinc-500">Run in 20+ languages</div>
-              </div>
+              <FileCode className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Source Code</span>
             </button>
 
             <button
               type="button"
               onClick={() => {
                 setType('markdown');
-                setLanguage('markdown');
+                if (!name.includes('.')) {
+                  setName('notes.md');
+                }
               }}
-              className={`p-3 rounded-lg border text-left flex items-start gap-2.5 transition-colors ${
+              className={`p-2 rounded-md border text-xs font-medium flex items-center justify-center gap-2 transition-colors ${
                 type === 'markdown'
-                  ? 'bg-zinc-850 border-zinc-700 text-white'
-                  : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                  ? 'bg-[#181922] border-indigo-500/80 text-white'
+                  : 'bg-[#0c0d10] border-[#23252f] text-zinc-400 hover:text-zinc-200'
               }`}
             >
-              <FileText className="w-4 h-4 text-cyan-400 mt-0.5 shrink-0" />
-              <div>
-                <div className="text-xs font-medium">Markdown</div>
-                <div className="text-[10px] text-zinc-500">Live preview doc</div>
-              </div>
+              <FileText className="w-3.5 h-3.5 text-zinc-400" />
+              <span>Markdown Spec</span>
             </button>
           </div>
         </div>
 
+        {/* Language Selection for Code files */}
         {type === 'code' && (
           <div>
             <label className="block text-xs font-medium text-zinc-400 mb-1.5">
-              Programming Language
+              Target Language
             </label>
             <select
               value={language}
               onChange={(e) => handleLanguageSelect(e.target.value as SupportedLanguage)}
-              aria-label="Language"
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-zinc-500 font-mono"
+              aria-label="Target Language"
+              className="w-full px-3 py-1.5 rounded-md bg-[#0c0d10] border border-[#23252f] text-sm font-mono text-zinc-200 focus:outline-none focus:border-indigo-500/80"
             >
               {Object.entries(categorizedLanguages).map(([cat, langs]) => (
                 <optgroup key={cat} label={cat}>
-                  {langs.map((lang) => (
-                    <option key={lang.id} value={lang.id}>
-                      {lang.label} ({lang.extension})
+                  {langs.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.label} ({l.extension})
                     </option>
                   ))}
                 </optgroup>
@@ -173,12 +173,12 @@ export const NewDocModal: React.FC<NewDocModalProps> = ({ isOpen, onClose, onCre
           </div>
         )}
 
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+        <div className="pt-2 flex justify-end gap-2 border-t border-[#1e2029]">
+          <Button type="button" variant="secondary" size="sm" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" variant="primary" size="sm">
-            Create File
+          <Button type="submit" variant="accent" size="sm">
+            Create Document
           </Button>
         </div>
       </form>

@@ -9,7 +9,7 @@ import {
   getLanguageConfig,
 } from '@forge/core';
 import { CollabManager } from '@forge/collaboration';
-import { Avatar, Tooltip } from '@forge/ui';
+import { Avatar } from '@forge/ui';
 import { CodeEditorView } from './CodeEditorView';
 import { MarkdownEditorView } from './MarkdownEditorView';
 import { ParticipantDrawer } from './ParticipantDrawer';
@@ -30,8 +30,6 @@ import {
   Users,
   Shield,
   LogOut,
-  ChevronLeft,
-  ChevronRight,
   QrCode,
   FolderOpen,
   X,
@@ -317,7 +315,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
     let text = 'Connecting...';
 
     if (meshStatus.overallConnectionStatus === 'connected-turn') {
-      dotClass = 'bg-purple-400';
+      dotClass = 'bg-indigo-400';
       text = `Relay Mesh (${meshStatus.peerCount + 1}/5)`;
     } else if (meshStatus.overallConnectionStatus === 'connected-p2p' || meshStatus.peerCount > 0) {
       dotClass = 'bg-emerald-400';
@@ -329,14 +327,14 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
       dotClass = 'bg-rose-400';
       text = 'Failed';
     } else if (meshStatus.signalingConnected) {
-      dotClass = 'bg-emerald-500/80';
+      dotClass = 'bg-emerald-400/80';
       text = 'Ready for peers (1/5)';
     }
 
     return (
       <button
         onClick={() => setIsParticipantDrawerOpen(true)}
-        className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 border border-transparent hover:border-zinc-800 transition-colors"
+        className="flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs text-zinc-400 hover:text-zinc-200 hover:bg-[#14151b] border border-transparent hover:border-[#23252f] transition-colors"
         title="View WebRTC diagnostics"
       >
         <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
@@ -346,43 +344,43 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] w-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] relative">
+    <div className="flex flex-col h-[100dvh] w-screen bg-[#0c0d10] text-zinc-100 overflow-hidden font-sans pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] relative">
       {/* Top Header */}
-      <header className="h-11 border-b border-zinc-850 bg-zinc-950 px-3 flex items-center justify-between shrink-0 select-none z-30 gap-2">
+      <header className="h-10 border-b border-[#1e2029] bg-[#0e0f13] px-3 flex items-center justify-between shrink-0 select-none z-30 gap-2">
         {/* Left Side */}
         <div className="flex items-center gap-2 shrink-0">
           {/* Mobile / Desktop Sidebar Toggle (Ctrl+B) */}
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="p-1 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-850 transition-colors"
+            className="p-1 rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-[#181922] transition-colors"
             title="Toggle File Explorer (Ctrl+B)"
             aria-label="Toggle File Explorer"
           >
-            <FolderOpen className="w-4 h-4 text-zinc-300" />
+            <FolderOpen className="w-4 h-4 text-zinc-400" />
           </button>
 
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-300">
-              <Code2 className="w-3 h-3" />
+            <div className="w-5 h-5 rounded bg-[#161720] border border-[#23252f] flex items-center justify-center text-zinc-300">
+              <Code2 className="w-3 h-3 text-indigo-400" />
             </div>
             <span className="font-semibold text-xs tracking-tight text-white hidden sm:inline">FORGE</span>
           </div>
 
-          <div className="h-3.5 w-px bg-zinc-800 hidden sm:block mx-0.5" />
+          <div className="h-3 w-px bg-[#23252f] hidden sm:block mx-0.5" />
 
           {/* Quick Open File Button (Ctrl+P) */}
           <button
             onClick={() => setIsQuickOpenOpen(true)}
-            className="hidden sm:flex items-center gap-1.5 bg-zinc-900/60 hover:bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 px-2 py-0.5 rounded-md text-xs transition-colors"
+            className="hidden sm:flex items-center gap-1.5 bg-[#121318] hover:bg-[#181922] border border-[#1e2029] hover:border-[#2b2d3a] text-zinc-400 hover:text-zinc-200 px-2 py-0.5 rounded-md text-xs transition-colors"
             title="Quick Open File (Ctrl+P)"
           >
             <Search className="w-3 h-3 text-zinc-500" />
             <span className="text-[11px]">Go to file...</span>
-            <kbd className="text-[9px] font-mono px-1 py-0.2 rounded bg-zinc-800 text-zinc-400 ml-1">⌘P</kbd>
+            <kbd className="text-[9px] font-mono px-1 py-0.2 rounded bg-[#1c1d27] border border-[#282a38] text-zinc-400 ml-1">⌘P</kbd>
           </button>
 
           {/* Room ID Pill */}
-          <div className="flex items-center gap-1.5 bg-zinc-900/80 border border-zinc-800 px-2 py-0.5 rounded-md text-xs">
+          <div className="flex items-center gap-1.5 bg-[#121318] border border-[#1e2029] px-2 py-0.5 rounded-md text-xs">
             <span className="font-mono text-[11px] text-zinc-300 max-w-[85px] sm:max-w-[140px] md:max-w-[180px] truncate">
               {roomId}
             </span>
@@ -403,7 +401,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
           {/* Share / Invite Button */}
           <button
             onClick={() => setIsConnectModalOpen(true)}
-            className="flex items-center gap-1.5 bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 hover:border-zinc-700 text-zinc-300 px-2.5 py-1 rounded-md text-xs transition-colors shrink-0 font-medium"
+            className="flex items-center gap-1.5 bg-[#14151b] hover:bg-[#1a1b24] border border-[#23252f] hover:border-[#2f3140] text-zinc-300 px-2.5 py-0.5 rounded-md text-xs transition-colors shrink-0 font-medium"
             title="Share room or scan QR code"
           >
             <QrCode className="w-3.5 h-3.5 text-zinc-400" />
@@ -421,7 +419,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
           {/* Overlapping Avatars */}
           <div
             onClick={() => setIsParticipantDrawerOpen(true)}
-            className="flex items-center -space-x-1 cursor-pointer p-0.5 rounded-md hover:bg-zinc-900 transition-colors"
+            className="flex items-center -space-x-1 cursor-pointer p-0.5 rounded-md hover:bg-[#14151b] transition-colors"
             title="View participants & diagnostics"
           >
             {participants.slice(0, 5).map((p) => (
@@ -431,7 +429,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
                 color={p.color}
                 size="sm"
                 isLocal={p.isLocal}
-                className="ring-2 ring-zinc-950 w-5 h-5 text-[9px]"
+                className="ring-1 ring-[#0e0f13] w-5 h-5 text-[9px]"
               />
             ))}
           </div>
@@ -439,19 +437,19 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
           {/* Participant count trigger */}
           <button
             onClick={() => setIsParticipantDrawerOpen(!isParticipantDrawerOpen)}
-            className="text-zinc-400 hover:text-white px-1.5 py-1 rounded-md hover:bg-zinc-850 transition-colors flex items-center gap-1 text-xs"
+            className="text-zinc-400 hover:text-white px-1.5 py-0.5 rounded-md hover:bg-[#14151b] transition-colors flex items-center gap-1 text-xs"
             title="Diagnostics"
           >
             <Users className="w-3.5 h-3.5 text-zinc-400" />
             <span className="font-mono text-[11px]">{participants.length}</span>
           </button>
 
-          <div className="h-3.5 w-px bg-zinc-800 mx-0.5" />
+          <div className="h-3 w-px bg-[#23252f] mx-0.5" />
 
           {/* Keyboard Shortcuts Trigger (Ctrl+?) */}
           <button
             onClick={() => setIsShortcutsOpen(true)}
-            className="p-1 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-850 transition-colors hidden sm:block"
+            className="p-1 rounded-md text-zinc-400 hover:text-white hover:bg-[#14151b] transition-colors hidden sm:block"
             title="VS Code Shortcuts (Ctrl+?)"
             aria-label="Keyboard Shortcuts"
           >
@@ -461,7 +459,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
           {/* Security info */}
           <button
             onClick={() => setIsSecurityModalOpen(true)}
-            className="p-1 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-850 transition-colors"
+            className="p-1 rounded-md text-zinc-400 hover:text-white hover:bg-[#14151b] transition-colors"
             title="Security info"
             aria-label="Security info"
           >
@@ -471,7 +469,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
           {/* Leave Workspace */}
           <button
             onClick={onLeave}
-            className="p-1 rounded-md text-zinc-400 hover:text-rose-400 hover:bg-zinc-850 transition-colors"
+            className="p-1 rounded-md text-zinc-400 hover:text-rose-400 hover:bg-[#14151b] transition-colors"
             title="Leave workspace"
             aria-label="Leave workspace"
           >
@@ -482,7 +480,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
 
       {/* Floating Save Toast Notification */}
       {saveToast && (
-        <div className="fixed top-14 right-4 z-50 flex items-center gap-2 px-3 py-1.5 bg-zinc-900 border border-zinc-750 text-zinc-200 text-xs rounded-lg shadow-xl animate-in fade-in slide-in-from-top-2 duration-150 font-mono">
+        <div className="fixed top-12 right-4 z-50 flex items-center gap-2 px-3 py-1.5 bg-[#14151b] border border-[#23252f] text-zinc-200 text-xs rounded-md shadow-xl animate-in fade-in slide-in-from-top-2 duration-150 font-mono">
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
           <span>{saveToast}</span>
         </div>
@@ -503,19 +501,19 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
         <aside
           className={`
             fixed md:static inset-y-0 left-0 z-40 md:z-20
-            ${isSidebarOpen ? 'w-64 translate-x-0' : '-translate-x-full md:translate-x-0 md:w-0'}
-            bg-zinc-950 border-r border-zinc-850 flex flex-col shrink-0 transition-all duration-150 overflow-hidden shadow-xl md:shadow-none
+            ${isSidebarOpen ? 'w-60 translate-x-0' : '-translate-x-full md:translate-x-0 md:w-0'}
+            bg-[#101115] border-r border-[#1e2029] flex flex-col shrink-0 transition-all duration-150 overflow-hidden shadow-xl md:shadow-none
           `}
         >
           {/* Sidebar Header */}
-          <div className="h-9 px-3 border-b border-zinc-850 flex items-center justify-between shrink-0">
-            <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
+          <div className="h-8 px-3 border-b border-[#1e2029] flex items-center justify-between shrink-0">
+            <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
               Explorer
             </span>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setIsNewDocModalOpen(true)}
-                className="p-1 rounded hover:bg-zinc-850 text-zinc-400 hover:text-white transition-colors"
+                className="p-1 rounded hover:bg-[#181922] text-zinc-400 hover:text-white transition-colors"
                 title="New File (Ctrl+Shift+N)"
                 aria-label="New File"
               >
@@ -533,10 +531,10 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
           </div>
 
           {/* Document Tree */}
-          <div className="flex-1 overflow-y-auto p-2 space-y-4">
+          <div className="flex-1 overflow-y-auto p-1.5 space-y-3">
             {/* Source Code Section */}
             <div>
-              <div className="text-[10px] uppercase font-medium text-zinc-500 px-2 mb-1 tracking-wider">
+              <div className="text-[10px] uppercase font-semibold text-zinc-500 px-2 mb-1 tracking-wider">
                 Source Code ({codeList.length})
               </div>
               <div className="space-y-0.5">
@@ -544,14 +542,14 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
                   <div
                     key={doc.id}
                     onClick={() => handleSelectDoc(doc.id)}
-                    className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs cursor-pointer transition-colors ${
+                    className={`group flex items-center justify-between px-2 py-1 rounded-md text-xs cursor-pointer transition-colors ${
                       activeDoc?.id === doc.id
-                        ? 'bg-zinc-850 text-white font-medium'
-                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
+                        ? 'bg-[#181922] text-zinc-100 font-medium border-l-2 border-indigo-500 rounded-l-none'
+                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-[#14151b]'
                     }`}
                   >
                     <div className="flex items-center gap-2 truncate">
-                      <FileCode className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <FileCode className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                       <span className="truncate font-mono">{doc.name}</span>
                     </div>
                     {files.length > 1 && (
@@ -571,7 +569,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
 
             {/* Documentation Section */}
             <div>
-              <div className="text-[10px] uppercase font-medium text-zinc-500 px-2 mb-1 tracking-wider">
+              <div className="text-[10px] uppercase font-semibold text-zinc-500 px-2 mb-1 tracking-wider">
                 Documentation ({docsList.length})
               </div>
               <div className="space-y-0.5">
@@ -579,10 +577,10 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
                   <div
                     key={doc.id}
                     onClick={() => handleSelectDoc(doc.id)}
-                    className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs cursor-pointer transition-colors ${
+                    className={`group flex items-center justify-between px-2 py-1 rounded-md text-xs cursor-pointer transition-colors ${
                       activeDoc?.id === doc.id
-                        ? 'bg-zinc-850 text-white font-medium'
-                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
+                        ? 'bg-[#181922] text-zinc-100 font-medium border-l-2 border-indigo-500 rounded-l-none'
+                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-[#14151b]'
                     }`}
                   >
                     <div className="flex items-center gap-2 truncate">
@@ -606,14 +604,14 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
           </div>
 
           {/* Sidebar Footer */}
-          <div className="p-2.5 border-t border-zinc-850 text-[10px] text-zinc-500 flex items-center justify-between font-mono">
+          <div className="p-2 border-t border-[#1e2029] text-[10px] text-zinc-500 flex items-center justify-between font-mono bg-[#0e0f13]">
             <span>IndexedDB</span>
             <span className="text-zinc-400">Yjs CRDT</span>
           </div>
         </aside>
 
         {/* Center: Editor Canvas */}
-        <main className="flex-1 flex flex-col h-full overflow-hidden bg-zinc-950">
+        <main className="flex-1 flex flex-col h-full overflow-hidden bg-[#0c0d10]">
           {activeDoc && collabManager ? (
             activeDoc.type === 'markdown' ? (
               <MarkdownEditorView
@@ -650,13 +648,13 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
       </div>
 
       {/* Bottom Status Bar */}
-      <footer className="h-6 border-t border-zinc-850 bg-zinc-950 px-3 flex items-center justify-between text-[11px] text-zinc-500 shrink-0 select-none z-30 font-mono overflow-hidden">
+      <footer className="h-6 border-t border-[#1e2029] bg-[#0c0d10] px-3 flex items-center justify-between text-[11px] text-zinc-500 shrink-0 select-none z-30 font-mono overflow-hidden">
         <div className="flex items-center gap-2 truncate">
           <span className="text-zinc-300 truncate max-w-[140px] sm:max-w-none">
             {activeDoc?.name}
           </span>
           <span className="text-zinc-700">/</span>
-          <span className="uppercase text-zinc-500">{activeDoc?.language}</span>
+          <span className="uppercase text-zinc-400">{activeDoc?.language}</span>
           <span className="text-zinc-700 hidden sm:inline">/</span>
           <span className="text-zinc-500 hidden sm:inline">UTF-8</span>
         </div>
@@ -664,7 +662,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
         <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={() => setIsShortcutsOpen(true)}
-            className="hover:text-zinc-300 transition-colors flex items-center gap-1 hidden md:flex"
+            className="hover:text-zinc-300 transition-colors flex items-center gap-1 hidden md:flex text-zinc-500"
             title="Shortcuts reference"
           >
             <Keyboard className="w-3 h-3" />
@@ -677,11 +675,11 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = ({
             <span
               className={`w-1.5 h-1.5 rounded-full ${
                 meshStatus.overallConnectionStatus === 'connected-turn'
-                  ? 'bg-purple-400'
+                  ? 'bg-indigo-400'
                   : meshStatus.peerCount > 0
                   ? 'bg-emerald-400'
                   : meshStatus.signalingConnected
-                  ? 'bg-emerald-500/80'
+                  ? 'bg-emerald-400/80'
                   : 'bg-zinc-600'
               }`}
             />

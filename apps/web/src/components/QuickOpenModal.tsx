@@ -68,11 +68,11 @@ export const QuickOpenModal: React.FC<QuickOpenModalProps> = ({
 
       {/* Floating Quick Open Palette */}
       <div
-        className="relative w-full max-w-xl bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl overflow-hidden z-10 animate-in fade-in-50 zoom-in-95 duration-100"
+        className="relative w-full max-w-lg bg-[#121318] border border-[#23252f] rounded-xl shadow-2xl overflow-hidden z-10 animate-in fade-in-50 zoom-in-95 duration-100"
         onKeyDown={handleKeyDown}
       >
         {/* Search Input */}
-        <div className="flex items-center gap-2.5 px-3 py-2.5 border-b border-zinc-800 bg-zinc-950">
+        <div className="flex items-center gap-2.5 px-3 py-2 border-b border-[#1e2029] bg-[#0c0d10]">
           <Search className="w-4 h-4 text-zinc-400 shrink-0" />
           <input
             ref={inputRef}
@@ -82,7 +82,7 @@ export const QuickOpenModal: React.FC<QuickOpenModalProps> = ({
             placeholder="Type document name to open... (↑/↓ to navigate, Enter to open)"
             className="w-full bg-transparent text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none font-sans"
           />
-          <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-[10px] font-mono text-zinc-400">
+          <kbd className="px-1.5 py-0.5 rounded bg-[#181922] border border-[#282a38] text-[10px] font-mono text-zinc-400">
             ESC
           </kbd>
         </div>
@@ -102,17 +102,17 @@ export const QuickOpenModal: React.FC<QuickOpenModalProps> = ({
                     onClose();
                   }}
                   onMouseEnter={() => setSelectedIndex(idx)}
-                  className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs cursor-pointer transition-colors ${
+                  className={`flex items-center justify-between px-3 py-1.5 rounded-md text-xs cursor-pointer transition-colors ${
                     isSelected
-                      ? 'bg-zinc-800 text-white'
-                      : 'text-zinc-400 hover:bg-zinc-850 hover:text-zinc-200'
+                      ? 'bg-[#181922] text-white border-l-2 border-indigo-500'
+                      : 'text-zinc-400 hover:bg-[#14151b] hover:text-zinc-200'
                   }`}
                 >
                   <div className="flex items-center gap-2.5 truncate">
                     {file.type === 'markdown' ? (
                       <FileText className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
                     ) : (
-                      <FileCode className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <FileCode className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                     )}
                     <span className="font-mono text-xs">{file.name}</span>
                     {isActive && (
@@ -120,7 +120,7 @@ export const QuickOpenModal: React.FC<QuickOpenModalProps> = ({
                     )}
                   </div>
 
-                  <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-zinc-400">
+                  <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-[#0c0d10] border border-[#1e2029] text-zinc-400">
                     {file.language}
                   </span>
                 </div>
@@ -134,7 +134,7 @@ export const QuickOpenModal: React.FC<QuickOpenModalProps> = ({
         </div>
 
         {/* Palette Footer Tip */}
-        <div className="px-3 py-1.5 border-t border-zinc-800/80 bg-zinc-950 text-[11px] text-zinc-500 flex items-center justify-between font-mono">
+        <div className="px-3 py-1.5 border-t border-[#1e2029] bg-[#0c0d10] text-[11px] text-zinc-500 flex items-center justify-between font-mono">
           <span>Quick Open</span>
           <span>Ctrl + P / ⌘P</span>
         </div>
