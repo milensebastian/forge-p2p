@@ -95,6 +95,19 @@ export function resolveIceServers(envIce?: string): RTCIceServer[] {
     }
   }
 
+  // Check cached TURN servers from previous fetch in session storage
+  if (typeof window !== 'undefined' && window.sessionStorage) {
+    try {
+      const cached = window.sessionStorage.getItem('forge_cached_turn');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed as RTCIceServer[];
+        }
+      }
+    } catch {}
+  }
+
   return DEFAULT_ICE_SERVERS;
 }
 
@@ -155,6 +168,11 @@ export async function fetchDynamicIceServers(signalingWsUrl?: string): Promise<D
           if (!alreadyPresent) {
             merged.push(defaultStun);
           }
+        }
+        if (typeof window !== 'undefined' && window.sessionStorage && data.hasTurn) {
+          try {
+            window.sessionStorage.setItem('forge_cached_turn', JSON.stringify(merged));
+          } catch {}
         }
         return {
           iceServers: merged,

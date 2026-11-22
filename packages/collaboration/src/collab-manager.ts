@@ -132,9 +132,22 @@ export class CollabManager {
           fetchDynamicIceServers(this.signalingUrl).then((dyn) => {
             if (this.isDestroyed) return;
             if (dyn.hasTurn) {
+              const hadTurn = this.turnConfigured;
               this.turnConfigured = true;
               this.iceServers = dyn.iceServers;
+              if (this.provider) {
+                const p = this.provider as any;
+                if (!p.peerOpts) p.peerOpts = {};
+                p.peerOpts.config = {
+                  ...(p.peerOpts.config || {}),
+                  iceServers: dyn.iceServers,
+                };
+              }
               this.notifyStatus();
+              // If we didn't have TURN initially, trigger ICE restart now that TURN is available
+              if (!hadTurn) {
+                this.restartIce();
+              }
             }
           });
         }
