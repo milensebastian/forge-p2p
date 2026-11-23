@@ -1,4 +1,5 @@
 import * as Y from 'yjs';
+import { Awareness } from 'y-protocols/awareness';
 import { WebrtcProvider } from 'y-webrtc';
 import { IndexeddbPersistence } from 'y-indexeddb';
 import {
@@ -19,14 +20,21 @@ import {
   resolveSignalingServers,
   resolveIceServers,
   fetchDynamicIceServers,
-  DEFAULT_ICE_SERVERS,
+  hasTurnServer,
+  usableIceServers,
 } from './signaling';
 
 export class CollabManager {
   public readonly roomId: string;
   public readonly signalingUrl: string | null = null;
   public readonly ydoc: Y.Doc;
-  public readonly provider: WebrtcProvider | null = null;
+  public readonly awareness: Awareness;
+  private webrtcProvider: WebrtcProvider | null = null;
+  private readonly iceSetup = new AbortController();
+
+  public get provider(): WebrtcProvider | null {
+    return this.webrtcProvider;
+  }
   public readonly persistence: IndexeddbPersistence | null = null;
   public readonly filesMap: Y.Map<DocumentMeta>;
 
@@ -53,11 +61,10 @@ export class CollabManager {
     this.ydoc = new Y.Doc();
     this.filesMap = this.ydoc.getMap<DocumentMeta>('workspace-files');
 
-    this.iceServers = config.iceServers || resolveIceServers();
-    this.turnConfigured = this.iceServers.some((s) => {
-      const urls = Array.isArray(s.urls) ? s.urls : [s.urls];
-      return urls.some((u) => u.startsWith('turn:') || u.startsWith('turns:'));
-    });
+    this.iceServers = usableIceServers(config.iceServers || resolveIceServers());
+    this.turnConfigured = hasTurnServer(this.iceServers);
+    this.awareness = new Awareness(this.ydoc);
+    this.setupAwareness();
 
     // 1. Local Persistence (IndexedDB)
     if (!config.disableIndexedDB && typeof window !== 'undefined' && 'indexedDB' in window) {
@@ -82,79 +89,10 @@ export class CollabManager {
       this.ensureInitialContent();
     }
 
-    // 2. WebRTC Provider for P2P Full-Mesh Sync
     if (!config.disableWebRTC && (typeof window !== 'undefined' || typeof WebSocket !== 'undefined')) {
       const signaling = config.signalingServers || resolveSignalingServers();
       this.signalingUrl = signaling[0] || null;
-
-      try {
-        this.provider = new WebrtcProvider(this.roomId, this.ydoc, {
-          signaling,
-          password: undefined,
-          maxConns: 20, // allows mesh handshake negotiations
-          filterBcConns: true,
-          peerOpts: {
-            trickle: true,
-            config: {
-              iceServers: this.iceServers,
-            },
-          },
-        });
-
-        // Awareness setup
-        this.setupAwareness();
-
-        // Listen for signaling & peer connection status
-        this.provider.on('status', ({ connected }: { connected: boolean }) => {
-          this.signalingConnected = connected;
-          this.notifyStatus();
-        });
-
-        this.provider.on('peers', ({ webrtcPeers, bcPeers }: { webrtcPeers: unknown[]; bcPeers?: unknown[] }) => {
-          this.currentPeersCount = (webrtcPeers?.length || 0) + (bcPeers?.length || 0);
-          this.notifyStatus();
-          this.notifyParticipants();
-          this.pollStats();
-        });
-
-        this.provider.on('synced', () => {
-          this.ensureInitialContent();
-          this.notifyStatus();
-        });
-
-        // Start periodic WebRTC stats inspection
-        this.statsTimer = setInterval(() => {
-          this.pollStats();
-        }, 2000);
-
-        // Fetch dynamic TURN credentials in background if available
-        if (typeof window !== 'undefined' && this.signalingUrl) {
-          fetchDynamicIceServers(this.signalingUrl).then((dyn) => {
-            if (this.isDestroyed) return;
-            if (dyn.hasTurn) {
-              const hadTurn = this.turnConfigured;
-              this.turnConfigured = true;
-              this.iceServers = dyn.iceServers;
-              if (this.provider) {
-                const p = this.provider as any;
-                if (!p.peerOpts) p.peerOpts = {};
-                p.peerOpts.config = {
-                  ...(p.peerOpts.config || {}),
-                  iceServers: dyn.iceServers,
-                };
-              }
-              this.notifyStatus();
-              // If we didn't have TURN initially, trigger ICE restart now that TURN is available
-              if (!hadTurn) {
-                this.restartIce();
-              }
-            }
-          });
-        }
-      } catch (err) {
-        console.error('[FORGE] WebRTC provider error:', err);
-        this.lastError = 'WebRTC initialization failed';
-      }
+      void this.connect(signaling);
     }
 
     // Listen to file tree changes
@@ -165,21 +103,50 @@ export class CollabManager {
     this.notifyStatus();
   }
 
+  private async connect(signaling: string[]): Promise<void> {
+    try {
+      if (this.signalingUrl && !this.turnConfigured && typeof window !== 'undefined') {
+        // y-webrtc connects in its constructor. Set ICE servers before it can create peers.
+        const ice = await fetchDynamicIceServers(this.signalingUrl, this.iceServers, this.iceSetup.signal);
+        if (this.isDestroyed) return;
+        this.iceServers = ice.iceServers;
+        this.turnConfigured = ice.hasTurn;
+      }
+
+      const provider = new WebrtcProvider(this.roomId, this.ydoc, {
+        signaling,
+        awareness: this.awareness,
+        maxConns: 20,
+        filterBcConns: true,
+        peerOpts: {
+          trickle: true,
+          config: { iceServers: this.iceServers },
+        },
+      });
+      this.webrtcProvider = provider;
+
+      provider.on('status', () => this.pollStats());
+      provider.on('peers', () => {
+        this.notifyParticipants();
+        void this.pollStats();
+      });
+      provider.on('synced', () => {
+        this.ensureInitialContent();
+        void this.pollStats();
+      });
+      this.statsTimer = setInterval(() => void this.pollStats(), 2000);
+      this.notifyStatus();
+    } catch (err) {
+      if (this.isDestroyed) return;
+      console.error('[FORGE] WebRTC provider error:', err);
+      this.lastError = 'WebRTC initialization failed';
+      this.notifyStatus();
+    }
+  }
+
   private setupAwareness(): void {
-    if (!this.provider) return;
-
-    const awareness = this.provider.awareness;
-    awareness.setLocalStateField('user', {
-      name: this.localUser.name,
-      color: this.localUser.color,
-      activeDocId: this.localUser.activeDocId,
-      cursor: this.localUser.cursor,
-      lastSeen: Date.now(),
-    });
-
-    awareness.on('change', () => {
-      this.notifyParticipants();
-    });
+    this.awareness.setLocalStateField('user', { ...this.localUser, lastSeen: Date.now() });
+    this.awareness.on('change', () => this.notifyParticipants());
   }
 
   private ensureInitialContent(): void {
@@ -206,7 +173,11 @@ export class CollabManager {
     if (this.isDestroyed || !this.provider) return;
 
     const room = (this.provider as any).room;
-    if (!room || !room.webrtcConns) return;
+    this.signalingConnected = this.provider.signalingConns.some((conn) => conn.connected);
+    if (!room || !room.webrtcConns) {
+      this.notifyStatus();
+      return;
+    }
 
     const webrtcConns = Array.from((room.webrtcConns as Map<string, any>).entries());
     const peersDiags: PeerDiagnostic[] = [];
@@ -287,14 +258,15 @@ export class CollabManager {
       });
     }
 
+    if (this.isDestroyed) return;
     this.peersDiagnostics = peersDiags;
+    this.currentPeersCount = peersDiags.filter((peer) => peer.connected).length + room.bcConns.size;
 
     // Determine overall connection status
     if (this.currentPeersCount === 0) {
-      this.overallConnectionStatus = this.signalingConnected ? 'connecting' : 'disconnected';
+      this.overallConnectionStatus = hasAnyFailed ? 'failed' : hasAnyReconnecting ? 'reconnecting' :
+        this.signalingConnected ? 'connecting' : 'disconnected';
       this.activeCandidateType = 'unknown';
-    } else if (hasAnyFailed && !hasAnyDirect && !hasAnyRelay) {
-      this.overallConnectionStatus = 'failed';
     } else if (hasAnyReconnecting) {
       this.overallConnectionStatus = 'reconnecting';
     } else if (hasAnyRelay) {
@@ -378,9 +350,9 @@ export class CollabManager {
   }
 
   private notifyParticipants(): void {
-    if (this.isDestroyed || !this.events.onParticipantsChange || !this.provider) return;
+    if (this.isDestroyed || !this.events.onParticipantsChange) return;
 
-    const states = this.provider.awareness.getStates();
+    const states = this.awareness.getStates();
     const localClientId = this.ydoc.clientID;
     const participantsList: Participant[] = [];
 
@@ -458,40 +430,19 @@ export class CollabManager {
 
   public setLocalActiveDoc(docId: string): void {
     this.localUser.activeDocId = docId;
-    if (this.provider) {
-      this.provider.awareness.setLocalStateField('user', {
-        ...this.localUser,
-        activeDocId: docId,
-        lastSeen: Date.now(),
-      });
-    }
+    this.awareness.setLocalStateField('user', { ...this.localUser, lastSeen: Date.now() });
   }
 
   public setLocalCursor(docId: string, line: number, col: number): void {
     this.localUser.activeDocId = docId;
     this.localUser.cursor = { line, col };
-    if (this.provider) {
-      this.provider.awareness.setLocalStateField('user', {
-        ...this.localUser,
-        activeDocId: docId,
-        cursor: { line, col },
-        lastSeen: Date.now(),
-      });
-    }
+    this.awareness.setLocalStateField('user', { ...this.localUser, lastSeen: Date.now() });
   }
 
   public updateLocalUser(name: string, color: string): void {
     this.localUser.name = name;
     this.localUser.color = color;
-    if (this.provider) {
-      this.provider.awareness.setLocalStateField('user', {
-        ...this.localUser,
-        name,
-        color,
-        lastSeen: Date.now(),
-      });
-    }
-    this.notifyParticipants();
+    this.awareness.setLocalStateField('user', { ...this.localUser, lastSeen: Date.now() });
   }
 
   public getDiagnostics() {
@@ -513,6 +464,7 @@ export class CollabManager {
 
   public destroy(): void {
     this.isDestroyed = true;
+    this.iceSetup.abort();
     if (this.statsTimer) {
       clearInterval(this.statsTimer);
       this.statsTimer = null;

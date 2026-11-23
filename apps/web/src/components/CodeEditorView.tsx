@@ -282,12 +282,12 @@ export const CodeEditorView: React.FC<CodeEditorViewProps> = ({
     const ytext = collabManager.getText(document.id);
     const model = editor.getModel();
 
-    if (model && collabManager.provider) {
+    if (model) {
       bindingRef.current = new MonacoBinding(
         ytext,
         model as any,
         new Set([editor as any]),
-        collabManager.provider.awareness,
+        collabManager.awareness,
         monacoRef.current as any
       );
     }

@@ -51,6 +51,8 @@ export function startSignalingServer(options: SignalingServerOptions = {}) {
   const xirsysSecret = options.xirsysSecret || process.env.XIRSYS_SECRET || '';
   const xirsysChannel = options.xirsysChannel || process.env.XIRSYS_CHANNEL || 'default';
 
+  const xirsysTtlSeconds = 21600;
+  const xirsysCacheMs = 45000;
   let cachedXirsys: { iceServers: RTCIceServer[]; expiresAt: number } | null = null;
 
   async function fetchXirsysIceServers(): Promise<RTCIceServer[] | null> {
@@ -67,7 +69,7 @@ export function startSignalingServer(options: SignalingServerOptions = {}) {
         const xReq = https.request(
           {
             hostname: 'global.xirsys.net',
-            path: `/_turn/${encodeURIComponent(xirsysChannel)}`,
+            path: `/_turn/${encodeURIComponent(xirsysChannel)}?webrtc=1&expire=${xirsysTtlSeconds}`,
             method: 'PUT',
             headers: {
               'Authorization': `Basic ${auth}`,
@@ -82,22 +84,14 @@ export function startSignalingServer(options: SignalingServerOptions = {}) {
             xRes.on('end', () => {
               try {
                 const parsed = JSON.parse(data);
-                if (parsed.s === 'ok' && parsed.v && parsed.v.iceServers) {
-                  const xIce = parsed.v.iceServers;
-                  const result: RTCIceServer[] = [
-                    {
-                      urls: xIce.urls,
-                      username: xIce.username,
-                      credential: xIce.credential,
-                    },
-                  ];
-                  cachedXirsys = {
-                    iceServers: result,
-                    expiresAt: Date.now() + 30 * 60 * 1000, // cache for 30 minutes
-                  };
+                const result = parsed.v?.iceServers;
+                if (xRes.statusCode === 200 && parsed.s === 'ok' && Array.isArray(result) &&
+                    result.some((entry: RTCIceServer) => entry?.username && entry.credential &&
+                      Array.isArray(entry.urls) && entry.urls.some((url) => typeof url === 'string' && /^turns?:/i.test(url)))) {
+                  cachedXirsys = { iceServers: result, expiresAt: Date.now() + xirsysCacheMs };
                   resolve(result);
                 } else {
-                  reject(new Error(`Xirsys API response: ${data}`));
+                  reject(new Error(`Xirsys TURN request failed (HTTP ${xRes.statusCode})`));
                 }
               } catch (e) {
                 reject(e);
@@ -115,7 +109,7 @@ export function startSignalingServer(options: SignalingServerOptions = {}) {
       });
     } catch (err) {
       console.error('[FORGE Signaling] Xirsys fetch error:', err);
-      return cachedXirsys ? cachedXirsys.iceServers : null;
+      return null;
     }
   }
 
@@ -133,6 +127,7 @@ export function startSignalingServer(options: SignalingServerOptions = {}) {
           iceServers: [{ urls: DEFAULT_STUN_LIST }, ...xirsysServers],
           hasTurn: true,
           type: 'xirsys-dynamic',
+          ttl: xirsysTtlSeconds,
         };
       }
     }
@@ -226,6 +221,7 @@ export function startSignalingServer(options: SignalingServerOptions = {}) {
     }
 
     if (req.method === 'GET' && (parsedUrl.pathname === '/api/turn-credentials' || parsedUrl.pathname === '/turn-credentials')) {
+      res.setHeader('Cache-Control', 'no-store');
       generateIceServers()
         .then((result) => {
           res.writeHead(200, { 'Content-Type': 'application/json' });

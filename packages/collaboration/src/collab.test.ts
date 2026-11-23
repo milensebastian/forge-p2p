@@ -1,10 +1,14 @@
-import { describe, it, expect, afterEach } from 'vitest';
-import { resolveSignalingServers, resolveIceServers, DEFAULT_SIGNALING_SERVERS, DEFAULT_ICE_SERVERS } from './signaling';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { resolveSignalingServers, resolveIceServers, fetchDynamicIceServers, DEFAULT_SIGNALING_SERVERS, DEFAULT_ICE_SERVERS } from './signaling';
 import { CollabManager } from './collab-manager';
 import { startSignalingServer } from './signaling-server';
 import http from 'http';
+import https from 'https';
+import { EventEmitter } from 'node:events';
 
 describe('Signaling and ICE Server Resolution', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
   it('returns default signaling servers when none provided', () => {
     const servers = resolveSignalingServers();
     expect(servers).toEqual(DEFAULT_SIGNALING_SERVERS);
@@ -33,6 +37,24 @@ describe('Signaling and ICE Server Resolution', () => {
   it('parses comma-separated STUN/TURN URLs from environment', () => {
     const ice = resolveIceServers('stun:stun.custom.com:3478, turn:turn.custom.com:3478');
     expect(ice).toEqual([{ urls: ['stun:stun.custom.com:3478', 'turn:turn.custom.com:3478'] }]);
+  });
+
+  it('keeps authenticated TURN and discards credential-less TURN URLs', async () => {
+    const relay = { urls: ['turns:relay.example.com:443?transport=tcp'], username: 'user', credential: 'pass' };
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      iceServers: [relay, { urls: 'turn:missing-credentials.example.com' }],
+    }))));
+
+    const ice = await fetchDynamicIceServers('wss://signal.example.com', [
+      { urls: ['stun:custom.example.com', 'turn:invalid.example.com'] },
+    ]);
+    expect(ice).toEqual({ iceServers: [relay, { urls: ['stun:custom.example.com'] }], hasTurn: true });
+  });
+
+  it('falls back to usable direct ICE routes when the relay endpoint is unavailable', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 503 })));
+    const ice = await fetchDynamicIceServers('wss://signal.example.com');
+    expect(ice).toEqual({ iceServers: DEFAULT_ICE_SERVERS, hasTurn: false });
   });
 });
 
@@ -94,6 +116,51 @@ describe('CollabManager (CRDT State Machine)', () => {
 });
 
 describe('Signaling Server', () => {
+  it('refreshes Xirsys credentials and requests an explicit lifetime', async () => {
+    const makeRelay = (username: string) => ({
+      urls: ['turns:relay.example.com:443?transport=tcp'],
+      username,
+      credential: 'example-credential',
+    });
+    const clock = vi.spyOn(Date, 'now');
+    let upstreamCalls = 0;
+    const request = vi.spyOn(https, 'request').mockImplementation(((options: https.RequestOptions, callback: (response: http.IncomingMessage) => void) => {
+      expect(options.path).toBe('/_turn/demo?webrtc=1&expire=21600');
+      const client = new EventEmitter() as http.ClientRequest;
+      client.write = (() => true) as typeof client.write;
+      client.end = (() => {
+        const response = new EventEmitter() as http.IncomingMessage;
+        response.statusCode = 200;
+        callback(response);
+        response.emit('data', JSON.stringify({ s: 'ok', v: { iceServers: [makeRelay('user-' + ++upstreamCalls)] } }));
+        response.emit('end');
+        return client;
+      }) as typeof client.end;
+      return client;
+    }) as typeof https.request);
+    const signaling = startSignalingServer({
+      port: 4500, host: '127.0.0.1', xirsysIdent: 'test', xirsysSecret: 'test', xirsysChannel: 'demo',
+    });
+    const getRelay = async () => {
+      const response = await fetch('http://127.0.0.1:4500/api/turn-credentials');
+      expect(response.headers.get('cache-control')).toBe('no-store');
+      return response.json();
+    };
+    try {
+      clock.mockReturnValue(1000);
+      expect(await getRelay()).toMatchObject({ hasTurn: true, ttl: 21600, iceServers: [expect.anything(), makeRelay('user-1')] });
+      clock.mockReturnValue(2000);
+      expect(await getRelay()).toMatchObject({ iceServers: [expect.anything(), makeRelay('user-1')] });
+      clock.mockReturnValue(48000);
+      expect(await getRelay()).toMatchObject({ iceServers: [expect.anything(), makeRelay('user-2')] });
+      expect(request).toHaveBeenCalledTimes(2);
+    } finally {
+      request.mockRestore();
+      clock.mockRestore();
+      await signaling.close();
+    }
+  });
+
   it('starts and responds to HTTP /health endpoint', async () => {
     const signaling = startSignalingServer({ port: 4499, host: '127.0.0.1' });
 

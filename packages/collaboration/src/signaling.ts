@@ -95,19 +95,6 @@ export function resolveIceServers(envIce?: string): RTCIceServer[] {
     }
   }
 
-  // Check cached TURN servers from previous fetch in session storage
-  if (typeof window !== 'undefined' && window.sessionStorage) {
-    try {
-      const cached = window.sessionStorage.getItem('forge_cached_turn');
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed as RTCIceServer[];
-        }
-      }
-    } catch {}
-  }
-
   return DEFAULT_ICE_SERVERS;
 }
 
@@ -117,77 +104,78 @@ export interface DynamicIceResult {
   warning?: string;
 }
 
-/**
- * Fetches dynamic ICE / TURN credentials from the signaling server HTTP endpoint.
- * Falls back to resolveIceServers() if unavailable or unreachable.
- */
-export async function fetchDynamicIceServers(signalingWsUrl?: string): Promise<DynamicIceResult> {
-  const staticIce = resolveIceServers();
-  const hasStaticTurn = staticIce.some((s) => {
-    const urls = Array.isArray(s.urls) ? s.urls : [s.urls];
-    return urls.some((u) => u.startsWith('turn:') || u.startsWith('turns:'));
-  });
+function isTurnUrl(url: string): boolean {
+  return /^turns?:/i.test(url);
+}
 
-  if (!signalingWsUrl && typeof window === 'undefined') {
-    return { iceServers: staticIce, hasTurn: hasStaticTurn };
-  }
+export function hasTurnServer(servers: RTCIceServer[]): boolean {
+  return servers.some(({ urls, username, credential }) =>
+    Boolean(username && credential && [urls].flat().some(isTurnUrl))
+  );
+}
 
-  // Derive HTTP base URL from signaling WebSocket URL
-  let httpBase: string | null = null;
-  const targetWs = signalingWsUrl || DEFAULT_SIGNALING_SERVERS[0];
-
-  try {
-    const parsed = new URL(targetWs);
-    const protocol = parsed.protocol === 'wss:' ? 'https:' : 'http:';
-    httpBase = `${protocol}//${parsed.host}`;
-  } catch {
-    httpBase = null;
-  }
-
-  if (!httpBase) {
-    return { iceServers: staticIce, hasTurn: hasStaticTurn };
-  }
-
-  try {
-    const res = await fetch(`${httpBase}/api/turn-credentials`, {
-      signal: AbortSignal.timeout(3000),
-      headers: { Accept: 'application/json' },
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.iceServers) && data.iceServers.length > 0) {
-        // Merge with our default STUN servers if not already present
-        const merged: RTCIceServer[] = [...data.iceServers];
-        for (const defaultStun of DEFAULT_ICE_SERVERS) {
-          const defaultUrls = Array.isArray(defaultStun.urls) ? defaultStun.urls : [defaultStun.urls];
-          const alreadyPresent = merged.some((m) => {
-            const mUrls = Array.isArray(m.urls) ? m.urls : [m.urls];
-            return mUrls.some((u) => defaultUrls.includes(u));
-          });
-          if (!alreadyPresent) {
-            merged.push(defaultStun);
-          }
-        }
-        if (typeof window !== 'undefined' && window.sessionStorage && data.hasTurn) {
-          try {
-            window.sessionStorage.setItem('forge_cached_turn', JSON.stringify(merged));
-          } catch {}
-        }
-        return {
-          iceServers: merged,
-          hasTurn: Boolean(data.hasTurn),
-          warning: data.warning,
-        };
-      }
+export function usableIceServers(servers: unknown[]): RTCIceServer[] {
+  const result: RTCIceServer[] = [];
+  for (const value of servers) {
+    if (!value || typeof value !== 'object') continue;
+    const { urls: rawUrls, username, credential } = value as Partial<RTCIceServer>;
+    const urls = [rawUrls].flat().filter((url): url is string =>
+      typeof url === 'string' && /^(stuns?|turns?):/i.test(url)
+    );
+    const stun = urls.filter((url) => !isTurnUrl(url));
+    const turn = urls.filter(isTurnUrl);
+    if (stun.length) result.push({ urls: stun });
+    if (turn.length && typeof username === 'string' && username &&
+        typeof credential === 'string' && credential) {
+      result.push({ urls: turn, username, credential });
     }
-  } catch {
-    // If dynamic endpoint unreachable, fall back gracefully
   }
+  return result;
+}
 
-  return {
-    iceServers: staticIce,
-    hasTurn: hasStaticTurn,
-    warning: hasStaticTurn ? undefined : 'No TURN relay configured. Strict symmetric NATs may fail.',
-  };
+/** Resolve fresh credentials before starting WebRTC, including after a Render cold start. */
+export async function fetchDynamicIceServers(
+  signalingWsUrl: string,
+  fallback = resolveIceServers(),
+  signal?: AbortSignal
+): Promise<DynamicIceResult> {
+  const fallbackIce = usableIceServers(fallback);
+  const fallbackResult = { iceServers: fallbackIce, hasTurn: hasTurnServer(fallbackIce) };
+  const request = new AbortController();
+  const cancelRequest = () => request.abort();
+  if (signal?.aborted) return fallbackResult;
+  signal?.addEventListener('abort', cancelRequest, { once: true });
+  const timeout = setTimeout(cancelRequest, 45000);
+  try {
+    const endpoint = new URL(signalingWsUrl);
+    if (endpoint.protocol !== 'ws:' && endpoint.protocol !== 'wss:') return fallbackResult;
+    endpoint.protocol = endpoint.protocol === 'wss:' ? 'https:' : 'http:';
+    const response = await fetch(new URL('/api/turn-credentials', endpoint), {
+      signal: request.signal,
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    });
+    if (!response.ok) return fallbackResult;
+
+    const { iceServers } = await response.json();
+    if (!Array.isArray(iceServers)) return fallbackResult;
+
+    const remote = usableIceServers(iceServers);
+    if (!hasTurnServer(remote)) return fallbackResult;
+    const seen = new Set<string>();
+    const merged = [...remote, ...fallbackIce].flatMap((server) => {
+      const urls = [server.urls].flat().filter((url) => {
+        if (seen.has(url)) return false;
+        seen.add(url);
+        return true;
+      });
+      return urls.length ? [{ ...server, urls }] : [];
+    });
+    return { iceServers: merged, hasTurn: true };
+  } catch {
+    return fallbackResult;
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener('abort', cancelRequest);
+  }
 }
